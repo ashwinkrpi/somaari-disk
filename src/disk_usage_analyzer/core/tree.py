@@ -36,6 +36,49 @@ def top_children(node: Node, n: int, by: str = "size") -> tuple[list[Node], Roll
     return top, RollUp(len(rest), sum(c.size for c in rest), sum(c.size_on_disk for c in rest))
 
 
+SORT_KEYS = ("size", "size_on_disk", "name", "mtime")
+
+
+def sorted_children(
+    node: Node, n: int, sort: str = "size", by: str = "size"
+) -> tuple[list[Node], RollUp | None]:
+    """Largest n children by `by`, shown in `sort` order (name ascending, others descending)."""
+    if sort not in SORT_KEYS:
+        raise ValueError(f"unknown sort: {sort}")
+    top, rest = top_children(node, n, by)
+    if sort == "name":
+        top.sort(key=lambda c: (c.name.casefold(), c.name))
+    elif sort != by:
+        top.sort(key=attrgetter(sort), reverse=True)
+    return top, rest
+
+
+def find_node(root: Node, segments: tuple[str, ...] | list[str]) -> Node | None:
+    """Node at segments below root, or None if it is not in the tree."""
+    node = root
+    for name in segments:
+        if not node.children:
+            return None
+        node = next((c for c in node.children if c.name == name), None)  # type: ignore[assignment]
+        if node is None:
+            return None
+    return node
+
+
+def remove_node(node: Node) -> None:
+    """Detach node and subtract its sizes from every ancestor (after Move to Trash)."""
+    parent = node.parent
+    if parent is None:
+        raise ValueError("cannot remove the scan root")
+    assert parent.children is not None
+    parent.children.remove(node)
+    node.parent = None
+    while parent is not None:
+        parent.size -= node.size
+        parent.size_on_disk -= node.size_on_disk
+        parent = parent.parent
+
+
 def largest_files(root: Node, n: int, by: str = "size") -> list[Node]:
     files = (x for x in iter_nodes(root) if not x.is_dir)
     return heapq.nlargest(n, files, key=attrgetter(by))

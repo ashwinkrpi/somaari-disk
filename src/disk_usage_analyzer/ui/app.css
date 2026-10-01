@@ -1,0 +1,175 @@
+/* Tokens from design/DESIGN-TOKENS.md. app.js sets data-theme to light/dark from the OS
+   preference or the user override; light is the fallback. */
+
+@font-face { font-family: "IBM Plex Sans"; font-weight: 400; font-display: swap;
+  src: local("IBM Plex Sans"), local("IBMPlexSans"), url("fonts/IBMPlexSans-Regular.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 500; font-display: swap;
+  src: local("IBM Plex Sans Medium"), local("IBMPlexSans-Medium"), url("fonts/IBMPlexSans-Medium.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-weight: 600; font-display: swap;
+  src: local("IBM Plex Sans SemiBold"), local("IBMPlexSans-SemiBold"), url("fonts/IBMPlexSans-SemiBold.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 500; font-display: swap;
+  src: local("IBM Plex Mono Medium"), local("IBMPlexMono-Medium"), url("fonts/IBMPlexMono-Medium.woff2") format("woff2"); }
+
+:root {
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* light palette */
+  --page-bg: #EEF0F3;
+  --top-bg: #16202C;
+  --text: #16202C;
+  --muted: #4A5565;
+  --border: #D5D9E0;
+  --divider: #E4E7EC;
+  --card: #FFFFFF;
+  --selected-bg: #E8F0FA;
+  --ring: #1F4E8C;
+  --bar-fill: #CFDBEC;
+  --subtle: #F6F7F9;
+  --control-bg: #FFFFFF;
+  --control-border: #8A94A3;
+  --top-muted: #C5CCD6;
+  --destructive: #B3261E;
+  --accent: #1F4E8C;
+  --track: #E4E7EC;
+  --detail-header: #F6F7F9;
+
+  /* usage states (Stage 4) */
+  --ok-fill: #2E7D32;    --ok-text: #1B5E20;
+  --warn-fill: #F2C14E;  --warn-text: #7A5B00;
+  --low-fill: #E07B1F;   --low-text: #9A4A00;
+  --full-fill: #C62828;  --full-text: #B3261E;
+
+  /* the top panel is dark in both themes, so its controls use dark control tokens */
+  --top-control-bg: #1F2937;
+  --top-control-border: #566274;
+  --top-text: #FFFFFF;
+  --top-ring: #8CC1F0;
+
+  --top-h: 88px;
+  --crumb-h: 44px;
+  --hit: 44px;
+  --gap: 16px;
+  --radius: 6px;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --page-bg: #0F141B;
+  --top-bg: #0A0E13;
+  --text: #E6EAF0;
+  --muted: #9AA6B5;
+  --border: #2C3644;
+  --divider: #2C3644;
+  --card: #1A222D;
+  --selected-bg: #1E3A5F;
+  --ring: #4C8DDB;
+  --bar-fill: #2A4568;
+  --subtle: #1F2937;
+  --control-bg: #1F2937;
+  --control-border: #566274;
+  --top-muted: #8A94A3;
+  --destructive: #F2B8B5;
+  --accent: #8CC1F0;
+  --track: #2C3644;
+  --detail-header: #212B38;
+  --ok-fill: #43A047;    --ok-text: #6FCF7A;
+  --warn-fill: #D9A93A;  --warn-text: #F2CF7A;
+  --low-fill: #E8893A;   --low-text: #F5B27A;
+  --full-fill: #E05252;  --full-text: #F2B8B5;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  display: flex;
+  flex-direction: column;
+  background: var(--page-bg);
+  color: var(--text);
+  font: 400 15px/1.4 var(--font-sans);
+  overflow: hidden;
+}
+button, select { font: inherit; color: inherit; }
+svg { width: 20px; height: 20px; fill: currentColor; flex: none; }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+/* ---- top panel ---------------------------------------------------------- */
+.top { background: var(--top-bg); color: var(--top-text); flex: none; }
+.top :focus-visible { outline-color: var(--top-ring); }
+.top-row {
+  height: var(--top-h);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 var(--gap);
+}
+.app-title { font-size: 20px; font-weight: 600; margin: 0 12px 0 0; white-space: nowrap; }
+.location { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.location-label { color: var(--top-muted); font-size: 13px; font-weight: 500; }
+.top select {
+  height: var(--hit);
+  background: var(--top-control-bg);
+  border: 1px solid var(--top-control-border);
+  border-radius: var(--radius);
+  padding: 0 12px;
+  color: var(--top-text);
+}
+#location { min-width: 420px; max-width: 100%; font: 500 15px var(--font-mono); }
+#theme { font-size: 14px; }
+.spacer { flex: 1; }
+.icon-btn, .btn {
+  height: var(--hit);
+  min-width: var(--hit);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--top-control-bg);
+  border: 1px solid var(--top-control-border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.icon-btn { width: var(--hit); padding: 0; }
+.btn { padding: 0 16px; font-weight: 500; }
+.icon-btn:hover:not(:disabled), .btn:hover:not(:disabled) { border-color: var(--top-muted); }
+button:disabled { opacity: 0.45; cursor: default; }
+
+.crumbs {
+  height: var(--crumb-h);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--gap);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.crumbs ol {
+  display: flex; align-items: center; margin: 0; padding: 0; list-style: none;
+  font: 500 13px var(--font-mono); white-space: nowrap; min-width: 0; overflow: hidden;
+}
+.crumbs li { display: flex; align-items: center; color: var(--top-muted); min-width: 0; }
+.crumbs li + li::before { content: "\203A"; padding: 0 8px; color: var(--top-muted); }
+.crumbs button {
+  background: none; border: 0; padding: 4px 2px; cursor: pointer; color: var(--top-muted);
+  font: inherit; min-height: 32px;
+}
+.crumbs button:hover { color: var(--top-text); text-decoration: underline; }
+.crumbs [aria-current="page"] { color: var(--top-text); font-weight: 600; }
+.crumbs li:not(:last-child) { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- body (Stage 4 fills this) ------------------------------------------- */
+.body { flex: 1; min-height: 0; padding: var(--gap); display: flex; gap: var(--gap); }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+.status { flex: 1; padding: 24px; align-self: flex-start; }
+.status-title { margin: 0 0 4px; font-size: 17px; font-weight: 600; }
+.status-detail { margin: 0; color: var(--muted); font: 500 14px var(--font-mono); }
+.status[data-kind="error"] .status-title { color: var(--destructive); }
+
+@media (max-width: 1100px) {
+  #location { min-width: 300px; }
+  .app-title { margin-right: 0; }
+}

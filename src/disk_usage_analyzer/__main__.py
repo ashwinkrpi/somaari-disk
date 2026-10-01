@@ -1,9 +1,6 @@
-"""Entry point: open the UI in a pywebview window, or `scan <path>` / `volumes` on the CLI."""
+"""Entry point: open the UI window ([--demo] [--debug]), or `scan <path>` / `volumes` CLI."""
 
 import sys
-from pathlib import Path
-
-UI_DIR = Path(__file__).parent / "ui"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -17,11 +14,13 @@ def main(argv: list[str] | None = None) -> int:
 
         return volumes_main(args[1:])
 
-    import webview  # lazy: heavy, GUI-only
+    unknown = [a for a in args if a not in ("--demo", "--debug")]
+    if unknown:
+        sys.stderr.write(f"unknown arguments: {' '.join(unknown)}\n")
+        return 2
+    from .app import run
 
-    webview.create_window("Disk Usage Analyzer", str(UI_DIR / "index.html"))
-    webview.start(gui="gtk")
-    return 0
+    return run(demo="--demo" in args, debug="--debug" in args)
 
 
 if __name__ == "__main__":

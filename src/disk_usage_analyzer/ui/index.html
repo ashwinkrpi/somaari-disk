@@ -1,10 +1,47 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="system">
 <head>
   <meta charset="utf-8">
-  <title>Disk Usage Analyzer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Disk Usage</title>
+  <link rel="stylesheet" href="app.css">
+  <script type="module" src="app.js"></script>
 </head>
 <body>
-  <h1>Hello from pywebview</h1>
+  <header class="top" aria-label="Location">
+    <div class="top-row">
+      <h1 class="app-title">Disk Usage</h1>
+      <label class="location">
+        <span class="location-label">Location</span>
+        <select id="location" disabled></select>
+      </label>
+      <button id="up" class="icon-btn" type="button" title="Up one folder (Alt+Up)" aria-label="Up one folder" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5l-7 7h4.5v7h5v-7H19z"/></svg>
+      </button>
+      <div class="spacer"></div>
+      <label class="theme">
+        <span class="visually-hidden">Theme</span>
+        <select id="theme" title="Theme">
+          <option value="system">System theme</option>
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+      </label>
+      <button id="rescan" class="btn" type="button" title="Rescan (F5)" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.2L13 11h7V4z"/></svg>
+        <span id="rescan-label">Rescan</span>
+      </button>
+    </div>
+    <nav class="crumbs" aria-label="Breadcrumb">
+      <ol id="breadcrumb"></ol>
+    </nav>
+  </header>
+  <main id="main" class="body">
+    <section class="card status" aria-live="polite">
+      <p id="status-title" class="status-title">Starting...</p>
+      <p id="status-detail" class="status-detail"></p>
+    </section>
+  </main>
 </body>
 </html>
