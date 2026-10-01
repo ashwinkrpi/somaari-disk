@@ -21,7 +21,7 @@ from ..core.models import Node, ScanProgress, ScanResult, Volume
 from ..core.scanner import Scanner
 from ..core.tree import SORT_KEYS, find_node, path_segments, remove_node, sorted_children
 from ..core.volumes import VolumeWatcher
-from ..platform.base import Platform
+from ..platform.base import Platform, TrashUnavailableError
 
 Emit = Callable[[str, dict], None]
 HOME_ID = "home"
@@ -77,9 +77,24 @@ def _guard(fn):
     return wrapper
 
 
+READ_ONLY_MSG = "This drive is read-only, so nothing on it can be changed."
+# move_to_trash failures in plain words; read_only and drive_unavailable keep the general text
+TRASH_MESSAGES = {
+    "permission": "You don't have permission to move this item. Nothing was moved.",
+    "no_trash": "This drive has no Trash and one can't be made on it, so the item can't be "
+    "moved to the Trash. Nothing was deleted.",
+    "not_found": "This item is already gone (moved or deleted outside this app). "
+    "The list has been updated.",
+}
+
+
 def _os_error(e: OSError) -> dict:
     if e.errno == errno.EROFS:
-        return _fail("read_only", "This drive is read-only, so nothing on it can be changed.")
+        return _fail("read_only", READ_ONLY_MSG)
+    if e.errno in (errno.ENODEV, errno.ENXIO):
+        return _fail("drive_unavailable", "The drive can't be reached. It may have been unplugged.")
+    if isinstance(e, TrashUnavailableError):
+        return _fail("no_trash", TRASH_MESSAGES["no_trash"])
     if isinstance(e, PermissionError):
         return _fail("permission", "You don't have permission to do that here.")
     if isinstance(e, FileNotFoundError):
@@ -144,6 +159,7 @@ class Api:
         self._thread: threading.Thread | None = None
         self._result: ScanResult | None = None
         self._location: str | None = None
+        self._read_only = False  # the scanned location's drive is mounted read-only
         self._watcher = VolumeWatcher(platform, self._on_volumes, volume_interval)
 
     # ---- events -------------------------------------------------------------
@@ -198,9 +214,11 @@ class Api:
     def scan(self, location: str) -> dict:
         """Start scanning a location (volume id or "home"); cancels any running scan."""
         root = self._resolve(location)
+        vol = _volume_for(root, self._platform.list_volumes())  # once per scan, not per click
         with self._lock:
             if self._scanner is not None:
                 self._scanner.cancel()
+            self._read_only = vol is not None and vol.is_read_only
             scan_id = next(self._scan_ids)
             scanner = Scanner(
                 self._platform,
@@ -363,6 +381,8 @@ class Api:
             details = self._flagged(node, "size", self._problems(result))
             path = result.root_path.joinpath(*details["segments"])
             details["share_root"] = _share(node.size, result.root.size)
+            details["read_only_drive"] = self._read_only
+            details["trash_blocked"] = self._trash_blocked(result, node)
         details["ok"] = True
         details["path"] = str(path)
         details["extension"] = "" if node.is_dir else path.suffix.lstrip(".").lower()
@@ -374,7 +394,21 @@ class Api:
             )
         except OSError:
             details.update(owner=None, group=None, mode=None, read_only=None)
+        try:
+            details["created"] = self._platform.created(path)
+        except OSError:
+            details["created"] = None
         return details
+
+    def _trash_blocked(self, result: ScanResult, node: Node) -> str | None:
+        """Why Move to Trash is unavailable for node, in plain words; None if it is allowed."""
+        if node.parent is None:
+            return "The scanned folder itself can't be moved to the Trash."
+        if result is not self._result:
+            return "Wait for the scan to finish before moving items to the Trash."
+        if self._read_only:
+            return READ_ONLY_MSG
+        return None
 
     @_guard
     def get_usage(self, location: str | None = None) -> dict:
@@ -421,13 +455,22 @@ class Api:
             path = result.root_path.joinpath(*path_segments(node))
             vol = _volume_for(path, self._platform.list_volumes())
             if vol is not None and vol.is_read_only:
-                raise ApiError(
-                    "read_only", "This drive is read-only, so nothing on it can be changed."
-                )
-            self._platform.trash(path)
+                raise ApiError("read_only", READ_ONLY_MSG)
             parent = node.parent
             assert parent is not None
-            remove_node(node)
+            try:
+                self._platform.trash(path)
+            except OSError as e:
+                fail = _os_error(e)
+                err = fail["error"]
+                if err["code"] == "not_found":
+                    remove_node(node)  # gone outside the app: keep the totals honest
+                    fail["removed"] = {"size": node.size, "size_on_disk": node.size_on_disk}
+                if err["code"] == "os_error":
+                    err["message"] = f"Couldn't move this item to the Trash: {err['message']}."
+                err["message"] = TRASH_MESSAGES.get(err["code"], err["message"])
+                return fail
+            remove_node(node)  # totals update in place: no rescan needed
             return {
                 "ok": True,
                 "removed": {"size": node.size, "size_on_disk": node.size_on_disk},

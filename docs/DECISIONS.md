@@ -37,13 +37,19 @@ Format: `- [date] decision - reason`
 - [2026-10-01] Unreadable folders flagged per item from scan warnings (`problem`: denied/unreadable/other_drive) - lets the list say "No access" instead of showing a silent 0 B.
 - [2026-10-01] Rescan keeps the open folder (falls back to root if it is gone); changing location starts at root. Backspace = Up (except in selects), Enter opens a folder, arrows/Home/End/PgUp/PgDn move the selection.
 - [2026-10-01] File selection shows a light summary (type, size, shares, modified) in the right panel; full "File details" + actions are Stage 5.
+- [2026-10-01] Created = filesystem birth time, read on demand via Platform.created (Linux: glibc statx through ctypes, Python 3.11 has no st_birthtime there; Windows/macOS: st_birthtime). Never ctime (that is change time). Unknown -> "Unknown" in the UI. Not stored in Node - keeps the tree compact.
+- [2026-10-01] Show in folder: files go through org.freedesktop.FileManager1.ShowItems via `gdbus` (2 s timeout; URI percent-encoded so no quoting issues), falling back to xdg-open of the parent folder; folders open directly. No new dependency.
+- [2026-10-01] Move to Trash UI: native <dialog> (modal, Esc = cancel, Cancel focused first) with name + size; button disabled with the reason when get_details.trash_blocked is set (scan root, scan running, read-only drive). Delete key on a file row opens the same dialog. After success the next row is selected and the folder/usage are re-read (tree totals already updated by the api).
+- [2026-10-01] Trash failures mapped to plain-language codes: no_trash (send2trash TrashPermissionError -> TrashUnavailableError), drive_unavailable (ENODEV/ENXIO), read_only, permission, not_found (item removed outside the app: also dropped from the tree so totals stay right), other errors "Couldn't move this item to the Trash: <reason>."
+- [2026-10-01] The scanned drive's read-only flag is cached per scan (one list_volumes per scan) - get_details runs on every selection and list_volumes runs lsblk on Linux. move_to_trash still re-checks live volumes.
+- [2026-10-01] WCAG AA checked by a test that computes contrast for text (4.5:1) and focus-ring (3:1) token pairs in light and dark - every pair passed with the existing tokens; added --on-destructive (#FFFFFF light, #0F141B dark) for the filled Move to Trash button.
 
 ## Deferred
-- reveal with the file selected (org.freedesktop.FileManager1.ShowItems over D-Bus) - Stage 5 if wanted.
 - Volume id across replug (filesystem UUID) and lsblk mount-point matching for LVM/LUKS mappers - Stage 6 hardware testing.
 - Windows hard-link ids and true size on disk (scandir stat lacks st_ino/st_nlink/st_blocks) - Stage 7.
 - Memory benchmark of the scan tree on a large real volume - Stage 6.
-- ctime/Created, owner, permissions, Show in folder / Move to Trash in the file view - Stage 5.
+- Show in folder / Move to Trash for selected folders (api supports it; boards show the buttons for files only) - needs a design call.
+- Undo / restore from Trash inside the app - not planned; the OS Trash restores.
 - Sort control and size-on-disk toggle for the list (api supports both) - not in Stage 4 boards; add if wanted.
 - Cache the problems map per scan instead of rebuilding from warnings on each get_children - only if many-warning scans prove slow (Stage 6).
 - Window min size 1024x600 set; visual check vs boards at 1280x800 / 1024x600 needs a human (Stage 4 screens).

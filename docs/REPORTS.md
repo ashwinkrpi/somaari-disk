@@ -31,3 +31,12 @@
 - Limitations: file selection shows a summary only; no sort/on-disk toggle in UI; side panel re-fetches on every render; dark usage-state colors not contrast-checked; fonts still not bundled.
 - Deferred: full file view + trash/reveal buttons, Created date (Stage 5); problems-map caching (Stage 6); sort control (unscheduled).
 - CHANGELOG updated: yes.
+
+## Stage 5: File details + actions (2026-10-01)
+- Files: ui/{index.html, app.css, app.js} (file view, confirm dialog, side errors, trash notice), api/bridge.py (created, read_only_drive, trash_blocked, trash failure codes/messages), platform/{base,local,linux,fake,demo}.py (created, TrashUnavailableError, ShowItems reveal), tests/test_{api,platform_linux,ui_static}.py, ARCHITECTURE, DECISIONS, CHANGELOG.
+- Tests: 141 passed, 0 skipped (Pi). Lint: ruff check + format clean. test_reveal changed on purpose: files now try FileManager1.ShowItems before xdg-open of the folder (old test asserted xdg-open only).
+- Needs me: `DISPLAY=:0 .venv/bin/python -m disk_usage_analyzer --demo` - select a file (details, Created), Move to Trash dialog (Esc, Cancel, Delete key), totals + notice after trash, light + dark at 1280x800 / 1024x600; on real files: Show in folder in Thunar (file selected?), trash on internal disk and on a USB exFAT/FAT32 stick (.Trash-<uid> made, or "no Trash" message), read-only mount (button disabled + reason), confirm Created is shown (statx) on ext4/exFAT. JS was not executed here (no node/browser run), only reviewed + static-tested.
+- Needs me (judgment): trash/show for selected folders (boards show buttons for files only).
+- Limitations: free space only changes when the Trash is emptied (said in the dialog); Created "Unknown" where the fs/kernel has no birth time; Windows created/reveal still Stage 7.
+- Deferred: folder actions (design call); in-app undo (not planned).
+- CHANGELOG updated: yes.

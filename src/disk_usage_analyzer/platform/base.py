@@ -62,6 +62,10 @@ class Permissions:
     is_read_only: bool  # for the current user
 
 
+class TrashUnavailableError(PermissionError):
+    """The item's volume has no usable Trash (and one can't be created there)."""
+
+
 class Platform(ABC):
     @abstractmethod
     def stat(self, path: Path) -> EntryInfo:
@@ -78,6 +82,11 @@ class Platform(ABC):
     @abstractmethod
     def owner_and_perms(self, path: Path) -> Permissions:
         """Owner and permissions of a path, without following links. Raises OSError."""
+
+    def created(self, path: Path) -> int | None:
+        """Creation (birth) time in UTC epoch seconds; None if the filesystem doesn't keep it.
+        Raises OSError if the path can't be read."""
+        return None
 
     @abstractmethod
     def is_hidden(self, path: Path) -> bool:

@@ -21,6 +21,7 @@ class FakeFile:
     stat_error: type[OSError] | None = None  # raised when the entry is stat'ed
     owner: str = "user"
     read_only: bool = False
+    created: int | None = None  # birth time; None = filesystem doesn't record it
 
 
 @dataclass
@@ -32,6 +33,7 @@ class FakeDir:
     stat_error: type[OSError] | None = None
     owner: str = "user"
     read_only: bool = False  # also blocks trashing its children
+    created: int | None = None
 
 
 @dataclass
@@ -68,6 +70,7 @@ class FakePlatform(Platform):
         self.volumes = list(volumes or [])
         self.trashed: list[Path] = []
         self.revealed: list[Path] = []
+        self.trash_error: OSError | None = None  # raised by trash() if set
         self.gone = False
         self._vanish_after = vanish_after
         self._listings = 0
@@ -141,6 +144,10 @@ class FakePlatform(Platform):
             mode = "drwxr-xr-x" if is_dir else "-rw-r--r--"
         return Permissions(node.owner, node.owner, mode, node.read_only)
 
+    def created(self, path: Path) -> int | None:
+        node, _ = self._lookup(path)
+        return None if isinstance(node, FakeLink) else node.created
+
     def is_hidden(self, path: Path) -> bool:
         return path.name.startswith(".")
 
@@ -150,6 +157,8 @@ class FakePlatform(Platform):
         self._lookup(path)
         parent, _ = self._lookup(path.parent)
         assert isinstance(parent, FakeDir)
+        if self.trash_error is not None:
+            raise self.trash_error
         if parent.read_only:
             raise _err(PermissionError, path)
         del parent.children[path.name]

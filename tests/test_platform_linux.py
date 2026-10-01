@@ -212,17 +212,92 @@ def test_owner_and_perms(tmp_path):
 
 
 def test_reveal(tmp_path, monkeypatch):
-    calls = []
+    calls, runs = [], []
     monkeypatch.setattr(linux.subprocess, "Popen", lambda cmd, **kw: calls.append((cmd, kw)))
+
+    def no_file_manager(cmd, **kw):
+        runs.append((cmd, kw))
+        return types.SimpleNamespace(returncode=1)
+
+    monkeypatch.setattr(linux.subprocess, "run", no_file_manager)
     f = tmp_path / "f.txt"
     f.write_text("x")
     p = LinuxPlatform()
-    p.reveal(f)
-    p.reveal(tmp_path)
+    p.reveal(f)  # ShowItems fails -> open the parent folder
+    p.reveal(tmp_path)  # folders open directly, no D-Bus call
     assert [c[0] for c in calls] == [["xdg-open", str(tmp_path)]] * 2
     assert calls[0][1]["start_new_session"] is True
+    assert len(runs) == 1 and runs[0][1]["timeout"] == linux.REVEAL_TIMEOUT
     with pytest.raises(FileNotFoundError):
         p.reveal(tmp_path / "missing")
+
+
+def test_reveal_selects_file_via_file_manager1(tmp_path, monkeypatch):
+    calls, runs = [], []
+    monkeypatch.setattr(linux.subprocess, "Popen", lambda cmd, **kw: calls.append(cmd))
+    monkeypatch.setattr(
+        linux.subprocess,
+        "run",
+        lambda cmd, **kw: runs.append(cmd) or types.SimpleNamespace(returncode=0),
+    )
+    f = tmp_path / "it's, odd.txt"
+    f.write_text("x")
+    LinuxPlatform().reveal(f)
+    assert calls == []  # the file manager selected it; no fallback
+    (cmd,) = runs
+    assert cmd[0] == "gdbus" and f"{linux.FM1}.ShowItems" in cmd
+    arg = cmd[-2]
+    assert arg == f"['{f.as_uri()}']" and arg.count("'") == 2 and "," not in arg
+
+
+@pytest.mark.parametrize("exc", [FileNotFoundError("gdbus"), subprocess.TimeoutExpired("gdbus", 2)])
+def test_reveal_falls_back_without_gdbus(tmp_path, monkeypatch, exc):
+    calls = []
+    monkeypatch.setattr(linux.subprocess, "Popen", lambda cmd, **kw: calls.append(cmd))
+
+    def run(cmd, **kw):
+        raise exc
+
+    monkeypatch.setattr(linux.subprocess, "run", run)
+    f = tmp_path / "f.txt"
+    f.write_text("x")
+    LinuxPlatform().reveal(f)
+    assert calls == [["xdg-open", str(tmp_path)]]
+
+
+@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="statx is Linux only")
+def test_created_birth_time(tmp_path):
+    import time
+
+    f = tmp_path / "f.txt"
+    f.write_text("x")
+    born = LinuxPlatform().created(f)
+    # None where the filesystem (or an old kernel/libc) doesn't record birth time
+    assert born is None or abs(born - time.time()) < 300
+    if born is not None:
+        with pytest.raises(FileNotFoundError):
+            LinuxPlatform().created(tmp_path / "missing")
+
+
+def test_created_without_statx(tmp_path, monkeypatch):
+    monkeypatch.setattr(linux, "_libc_statx", lambda: None)
+    assert LinuxPlatform().created(tmp_path) is None
+
+
+def test_trash_without_trash_dir(tmp_path, monkeypatch):
+    from disk_usage_analyzer.platform.base import TrashUnavailableError
+
+    class TrashPermissionError(PermissionError):  # same name as send2trash's
+        pass
+
+    def fail(path):
+        raise TrashPermissionError(13, "denied")
+
+    monkeypatch.setitem(sys.modules, "send2trash", types.SimpleNamespace(send2trash=fail))
+    f = tmp_path / "f"
+    f.write_text("x")
+    with pytest.raises(TrashUnavailableError):
+        get_platform().trash(f)
 
 
 @pytest.fixture

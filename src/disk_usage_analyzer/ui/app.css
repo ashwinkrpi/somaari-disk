@@ -30,6 +30,7 @@
   --control-border: #8A94A3;
   --top-muted: #C5CCD6;
   --destructive: #B3261E;
+  --on-destructive: #FFFFFF;
   --accent: #1F4E8C;
   --track: #E4E7EC;
   --detail-header: #F6F7F9;
@@ -70,6 +71,7 @@
   --control-border: #566274;
   --top-muted: #8A94A3;
   --destructive: #F2B8B5;
+  --on-destructive: #0F141B;
   --accent: #8CC1F0;
   --track: #2C3644;
   --detail-header: #212B38;
@@ -203,7 +205,10 @@ button:disabled { opacity: 0.45; cursor: default; }
   height: var(--hit); padding: 0 16px; font-weight: 500; cursor: pointer;
   background: var(--control-bg); border: 1px solid var(--control-border); border-radius: var(--radius);
 }
-.action:hover { border-color: var(--ring); }
+.action:hover:not(:disabled) { border-color: var(--ring); }
+.action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.action.danger { background: var(--destructive); border-color: var(--destructive); color: var(--on-destructive); }
+.action.danger:hover:not(:disabled) { border-color: var(--text); }
 
 .list-panel { flex: 2; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
 .panel-head {
@@ -220,6 +225,7 @@ button:disabled { opacity: 0.45; cursor: default; }
   background: var(--subtle); border-bottom: 1px solid var(--divider); font-size: 14px;
 }
 .notice[data-kind="gone"], .notice[data-kind="error"] { color: var(--destructive); font-weight: 500; }
+.notice[data-kind="done"] { color: var(--ok-text); font-weight: 500; }
 
 .rows { list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow: auto; }
 .rows li + li { border-top: 1px solid var(--divider); }
@@ -281,6 +287,24 @@ button.row:hover { background: var(--subtle); }
 .facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 16px; margin: 0; }
 .facts dt { color: var(--muted); font-size: 13px; }
 .facts dd { margin: 0; font: 500 13px var(--font-mono); overflow-wrap: anywhere; }
+.side-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.side-error {
+  margin: 0; display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px;
+  border: 1px solid var(--destructive); border-radius: var(--radius);
+  color: var(--destructive); font-weight: 500;
+}
+
+/* ---- confirm dialog --------------------------------------------------------- */
+.dialog {
+  width: min(440px, calc(100vw - 32px)); padding: 24px;
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.dialog::backdrop { background: rgba(10, 14, 19, 0.55); }
+.dialog h2 { margin: 0 0 16px; font-size: 18px; font-weight: 600; }
+.dialog-note { margin: 16px 0 0; color: var(--muted); font-size: 14px; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
 
 @media (max-width: 1100px) {
   #location { min-width: 300px; }

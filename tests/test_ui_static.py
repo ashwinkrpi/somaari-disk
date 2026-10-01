@@ -107,6 +107,84 @@ def test_list_states_covered():
         assert f"{flag}:" in JS.split("PROBLEM_TAGS = ", 1)[1].split("\n", 1)[0], flag
 
 
+def _palette(block: str) -> dict[str, str]:
+    return dict(re.findall(r"--([\w-]+):\s*(#[0-9A-Fa-f]{6})", block))
+
+
+def _luminance(hex_: str) -> float:
+    def channel(c: int) -> float:
+        c = c / 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+
+    r, g, b = (int(hex_[i : i + 2], 16) for i in (1, 3, 5))
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+
+
+def contrast(a: str, b: str) -> float:
+    hi, lo = sorted((_luminance(a), _luminance(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+# WCAG 2.1 AA: 4.5:1 for text, 3:1 for focus rings and other UI parts (1.4.11)
+TEXT_PAIRS = [
+    ("text", "card"), ("text", "page-bg"), ("text", "selected-bg"), ("text", "subtle"),
+    ("text", "control-bg"), ("muted", "card"), ("muted", "subtle"), ("muted", "page-bg"),
+    ("muted", "selected-bg"), ("muted", "detail-header"), ("destructive", "card"),
+    ("destructive", "subtle"), ("on-destructive", "destructive"), ("ok-text", "card"),
+    ("ok-text", "subtle"), ("warn-text", "card"), ("low-text", "card"), ("full-text", "card"),
+    ("accent", "card"), ("top-text", "top-bg"), ("top-muted", "top-bg"),
+    ("top-text", "top-control-bg"),
+]  # fmt: skip
+UI_PAIRS = [("ring", "card"), ("ring", "selected-bg"), ("top-ring", "top-bg")]
+
+
+def test_contrast_wcag_aa_light_and_dark():
+    root, dark_block = CSS.split(':root[data-theme="dark"]', 1)
+    light = _palette(root)
+    dark = {**light, **_palette(dark_block.split("}", 1)[0])}
+    bad = []
+    for name, pal in (("light", light), ("dark", dark)):
+        for pairs, need in ((TEXT_PAIRS, 4.5), (UI_PAIRS, 3.0)):
+            for fg, bg in pairs:
+                ratio = contrast(pal[fg], pal[bg])
+                if ratio < need:
+                    bad.append(f"{name} {fg} on {bg}: {ratio:.2f}")
+    assert not bad, bad
+
+
+def test_dark_theme_overrides_every_color():
+    root, dark_block = CSS.split(':root[data-theme="dark"]', 1)
+    light, dark = _palette(root), _palette(dark_block.split("}", 1)[0])
+    # top-panel tokens are dark in both themes by design; everything else needs a dark value
+    shared = {k for k in light if k.startswith("top-")}
+    assert set(light) - shared - set(dark) == set()
+
+
+def test_file_details_and_trash_dialog():
+    for label in (
+        "File details",
+        "Full path",
+        "Size on disk",
+        "Modified",
+        "Created",
+        "Owner",
+        "Permissions",
+        "Show in folder",
+        "Move to Trash",
+    ):
+        assert label in JS, label
+    # confirm dialog: name + size, Cancel first and focused, destructive button styled
+    assert '<dialog id="confirm"' in HTML and 'id="confirm-name"' in HTML
+    assert 'id="confirm-size"' in HTML
+    assert HTML.index('id="confirm-cancel"') < HTML.index('id="confirm-ok"')
+    assert '$("confirm-cancel").focus()' in JS and "showModal()" in JS
+    assert 'call("move_to_trash", item.segments, true)' in JS
+    assert ".action.danger" in CSS and ".dialog::backdrop" in CSS
+    # read-only drive / scan running: button disabled with the reason next to it
+    assert "trash_blocked" in JS and '"aria-describedby"' in JS
+    assert 'role", "alert"' in JS
+
+
 def test_ui_has_no_os_paths():
     assert "/home/" not in JS and "C:\\" not in JS
 

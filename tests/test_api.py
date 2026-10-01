@@ -398,6 +398,7 @@ def test_get_children_reads_partial_tree_while_scanning():
     docs = next(c for c in res["children"] if c["name"] == "Docs")
     assert docs["size"] == 0  # not listed yet
     assert api.get_details(["Videos", "a.mp4"])["size"] == 5000
+    assert "Wait for the scan" in api.get_details(["Videos", "a.mp4"])["trash_blocked"]
     # actions wait for a finished scan: the tree is still being built
     assert api.move_to_trash(["zeta.bin"], confirmed=True)["error"]["code"] == "no_scan"
     assert api.open_in_file_manager(["Videos"])["error"]["code"] == "no_scan"
@@ -489,6 +490,73 @@ def test_move_to_trash_permission_denied_keeps_tree():
     res = api.move_to_trash(["Docs", "x.pdf"], True)
     assert res["error"]["code"] == "permission"
     assert api.get_children(["Docs"])["node"]["child_count"] == 2
+
+
+def test_get_details_file_view_fields():
+    tree = sample_tree()
+    tree.children["zeta.bin"].created = 1_600_000_000
+    api, _, _ = scanned(tree=tree)
+    d = api.get_details(["zeta.bin"])
+    assert_json(d)
+    assert d["created"] == 1_600_000_000 and d["size_on_disk"] == 4096
+    assert d["read_only_drive"] is False and d["trash_blocked"] is None
+    assert api.get_details(["Alpha.txt"])["created"] is None  # filesystem doesn't record it
+    assert "can't be moved" in api.get_details([])["trash_blocked"]
+
+
+def test_get_details_trash_blocked_on_read_only_drive():
+    api, _, _ = scanned(volumes=[vol(is_read_only=True)])
+    d = api.get_details(["zeta.bin"])
+    assert d["read_only_drive"] is True and "read-only" in d["trash_blocked"]
+
+
+def test_get_details_created_unreadable():
+    class NoBirth(FakePlatform):
+        def created(self, path):
+            raise PermissionError(13, "denied")
+
+    rec = Recorder()
+    api = Api(NoBirth(sample_tree(), volumes=[vol()]), rec)
+    api.scan("dev-a")
+    assert rec.done.wait(5)
+    assert api.get_details(["zeta.bin"])["created"] is None
+
+
+def test_move_to_trash_no_trash_on_drive():
+    from disk_usage_analyzer.platform.base import TrashUnavailableError
+
+    api, plat, _ = scanned()
+    plat.trash_error = TrashUnavailableError(13, "no trash", "x")
+    res = api.move_to_trash(["zeta.bin"], True)
+    assert res["error"]["code"] == "no_trash" and "Nothing was deleted" in res["error"]["message"]
+    assert api.get_children([])["node"]["size"] == 10161  # tree untouched
+
+
+def test_move_to_trash_already_gone_updates_tree():
+    api, plat, _ = scanned()
+    plat.trash_error = FileNotFoundError(2, "gone", "x")
+    res = api.move_to_trash(["zeta.bin"], True)
+    assert_json(res)
+    assert res["error"]["code"] == "not_found" and "already gone" in res["error"]["message"]
+    assert res["removed"]["size"] == 2000
+    assert api.get_children([])["node"]["size"] == 10161 - 2000
+
+
+def test_move_to_trash_plain_language_failures():
+    import errno
+
+    api, plat, _ = scanned()
+    plat.trash_error = OSError(errno.EIO, "Input/output error")
+    msg = api.move_to_trash(["zeta.bin"], True)["error"]["message"]
+    assert msg == "Couldn't move this item to the Trash: Input/output error."
+    plat.trash_error = OSError(errno.ENODEV, "No such device")
+    assert api.move_to_trash(["zeta.bin"], True)["error"]["code"] == "drive_unavailable"
+    plat.trash_error = OSError(errno.EROFS, "Read-only file system")  # remounted read-only
+    res = api.move_to_trash(["zeta.bin"], True)
+    assert res["error"]["code"] == "read_only" and "read-only" in res["error"]["message"]
+    plat.trash_error = PermissionError(errno.EACCES, "denied")
+    assert "permission" in api.move_to_trash(["zeta.bin"], True)["error"]["message"]
+    assert plat.trashed == [] and api.get_children([])["node"]["size"] == 10161
 
 
 def test_os_error_codes():

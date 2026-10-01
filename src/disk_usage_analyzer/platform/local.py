@@ -7,7 +7,7 @@ import os
 import stat as st
 from pathlib import Path
 
-from .base import EntryInfo, Kind, Listing, Platform
+from .base import EntryInfo, Kind, Listing, Platform, TrashUnavailableError
 
 _REPARSE_POINT = getattr(st, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 
@@ -44,6 +44,10 @@ class LocalPlatform(Platform):
                     listing.errors.append((entry.name, e))
         return listing
 
+    def created(self, path: Path) -> int | None:
+        birth = getattr(os.lstat(path), "st_birthtime", None)  # Windows, macOS; not Linux
+        return int(birth) if birth else None
+
     def trash(self, path: Path) -> None:
         if not os.path.lexists(path):
             raise FileNotFoundError(errno.ENOENT, "not found", str(path))
@@ -55,7 +59,11 @@ class LocalPlatform(Platform):
 
         try:
             send2trash(path)  # trash of the item's own volume (.Trash-<uid> on USB, Recycle Bin)
-        except OSError:
+        except OSError as e:
+            # send2trash: no writable .Trash-<uid> at the volume top and none in the home trash
+            if type(e).__name__ == "TrashPermissionError":
+                msg = "no trash on this drive"
+                raise TrashUnavailableError(errno.EACCES, msg, str(path)) from e
             raise
         except Exception as e:  # send2trash raises plain Exception on some failures
             raise OSError(errno.EIO, str(e), str(path)) from e

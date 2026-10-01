@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import errno
+import functools
 import json
 import os
 import stat as st
+import struct
 import subprocess
 import threading
 from collections.abc import Callable, Iterable
@@ -30,6 +33,15 @@ NETWORK_FS = frozenset(
     "fuse.davfs2".split()
 )
 SYSTEM_TOP = frozenset({"boot", "efi"})  # first path part of system mounts besides the root
+FM1 = "org.freedesktop.FileManager1"
+FM1_PATH = "/org/freedesktop/FileManager1"  # D-Bus object path, not a filesystem path
+REVEAL_TIMEOUT = 2.0  # seconds
+# statx(2): struct statx is 256 bytes; stx_btime.tv_sec (s64) sits at byte 80
+AT_FDCWD = -100
+AT_SYMLINK_NOFOLLOW = 0x100
+STATX_BTIME = 0x800
+STATX_SIZE = 256
+STATX_BTIME_OFFSET = 80
 
 
 class Partition(Protocol):  # psutil.disk_partitions() item
@@ -160,6 +172,58 @@ def _usage(mount: str, slow: bool) -> Usage | None:
     return box[0] if box else None
 
 
+def _show_items(path: Path) -> bool:
+    """Ask the session file manager to select path. False if none answers in time."""
+    uri = path.absolute().as_uri()  # percent-encoded: no quotes or commas reach gdbus
+    cmd = ["gdbus", "call", "--session", "--dest", FM1, "--object-path", FM1_PATH]
+    cmd += ["--method", f"{FM1}.ShowItems", f"['{uri}']", "''"]
+    try:
+        done = subprocess.run(
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=REVEAL_TIMEOUT,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return done.returncode == 0
+
+
+@functools.cache
+def _libc_statx():
+    """glibc statx(), or None (musl, old glibc). Python 3.11 has no birth time on Linux."""
+    import ctypes
+
+    try:
+        fn = ctypes.CDLL(None, use_errno=True).statx
+    except (OSError, AttributeError):
+        return None
+    fn.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int, ctypes.c_uint, ctypes.c_void_p]
+    fn.restype = ctypes.c_int
+    return fn
+
+
+def _statx_btime(path: Path) -> int | None:
+    """Birth time via statx; None where the filesystem or kernel doesn't record it."""
+    fn = _libc_statx()
+    if fn is None:
+        return None
+    import ctypes
+
+    buf = ctypes.create_string_buffer(STATX_SIZE)
+    if fn(AT_FDCWD, os.fsencode(path), AT_SYMLINK_NOFOLLOW, STATX_BTIME, buf) != 0:
+        err = ctypes.get_errno()
+        if err == errno.ENOSYS:
+            return None
+        raise OSError(err, os.strerror(err), str(path))
+    (mask,) = struct.unpack_from("=I", buf, 0)
+    if not mask & STATX_BTIME:
+        return None
+    (sec,) = struct.unpack_from("=q", buf, STATX_BTIME_OFFSET)
+    return sec or None
+
+
 class LinuxPlatform(LocalPlatform):
     def list_volumes(self) -> list[Volume]:
         import psutil  # lazy: not needed for scans
@@ -189,9 +253,19 @@ class LinuxPlatform(LocalPlatform):
     def is_hidden(self, path: Path) -> bool:
         return path.name.startswith(".")
 
+    def created(self, path: Path) -> int | None:
+        return _statx_btime(path)
+
     def reveal(self, path: Path) -> None:
+        """Folders open in the file manager; files open their folder with the file selected
+        (FileManager1.ShowItems: Thunar, Nautilus, Dolphin, ...), else just the folder."""
         s = os.lstat(path)  # raises if gone
-        target = path if st.S_ISDIR(s.st_mode) else path.parent
+        if st.S_ISDIR(s.st_mode):
+            target = path
+        elif _show_items(path):
+            return
+        else:
+            target = path.parent
         subprocess.Popen(
             ["xdg-open", str(target)],
             stdin=subprocess.DEVNULL,

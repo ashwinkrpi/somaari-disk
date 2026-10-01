@@ -17,6 +17,8 @@ const state = {
   lastScan: null, // last scan_done payload
   disconnected: false, // the scanned drive went away; the list shows the last results
   error: null,
+  flash: null, // one-off list notice, e.g. after Move to Trash
+  sideError: null, // last failed action in the side panel, in plain words
   listSeq: 0, // drop replies to superseded get_children / side panel requests
   sideSeq: 0,
 };
@@ -59,6 +61,8 @@ const ICONS = {
   error: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-2h2zm0-4h-2V7h2z",
   drive: "M4 5h16l2 9v5H2v-5zm-1 11v1h18v-1zm14 0h2v1h-2z",
   scan: "M12 4V1L8 5l4 4V6a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z",
+  trash: "M9 3v1H4v2h16V4h-5V3zM5 8l1 13h12l1-13zm4 2h2v9H9zm4 0h2v9h-2z",
+  reveal: "M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8zm3 5 4 4-4 4v-3H8v-2h5z",
   more: "M6 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z",
 };
 
@@ -285,6 +289,7 @@ function noticeFor() {
     return { kind: "gone", icon: "unplugged", text: "Drive disconnected. These are the last results and may be incomplete." };
   }
   if (state.error) return { kind: "error", icon: "error", text: state.error };
+  if (state.flash) return { kind: state.flash.kind, icon: state.flash.icon, text: state.flash.text };
   if (f.node.problem && f.children.length) {
     return { icon: "lock", text: "Some items in this folder couldn't be read, so its size may be too small." };
   }
@@ -379,6 +384,58 @@ function fact(dl, term, value) {
   dl.append(el("dt", null, term), el("dd", null, value));
 }
 
+function rootName() {
+  const crumb = state.folder && state.folder.breadcrumb.find((c) => c.segments && !c.segments.length);
+  return crumb ? crumb.name : "the scan";
+}
+
+function fileType(d) {
+  const type = d.extension ? `${d.extension.toUpperCase()} file` : "File";
+  return d.hidden ? `${type} (hidden)` : type;
+}
+
+function sideButton(label, iconName, cls, onClick) {
+  const b = el("button", cls);
+  b.type = "button";
+  b.append(icon(iconName), el("span", null, label));
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+// File details per the boards: facts, then Show in folder + Move to Trash.
+function fileDetails(body, item, d) {
+  const dl = el("dl", "facts");
+  fact(dl, "Type", d.ok ? fileType(d) : "File");
+  fact(dl, "Size", formatSize(item.size));
+  fact(dl, "Of this folder", formatPercent(item.share_parent));
+  if (d.ok) {
+    fact(dl, `Of ${rootName()}`, formatPercent(d.share_root));
+    fact(dl, "Full path", d.path);
+    fact(dl, "Size on disk", formatSize(d.size_on_disk));
+  }
+  fact(dl, "Modified", formatDate(item.mtime));
+  if (d.ok) {
+    fact(dl, "Created", formatDate(d.created));
+    const group = d.group && d.group !== d.owner ? ` (group ${d.group})` : "";
+    fact(dl, "Owner", d.owner ? `${d.owner}${group}` : "Unknown");
+    fact(dl, "Permissions", d.mode ? `${d.mode}${d.read_only ? " (read-only)" : ""}` : "Unknown");
+  }
+  body.append(dl);
+  if (!d.ok) return;
+  const actions = el("div", "side-actions");
+  const trash = sideButton("Move to Trash", "trash", "action danger", () => trashItem(item));
+  actions.append(sideButton("Show in folder", "reveal", "action", () => reveal(item)), trash);
+  body.append(actions);
+  if (d.trash_blocked) {
+    // plain-language reason next to the disabled button (read-only drive, scan running)
+    trash.disabled = true;
+    const why = el("p", "side-note", d.trash_blocked);
+    why.id = "trash-why";
+    trash.setAttribute("aria-describedby", why.id);
+    body.append(why);
+  }
+}
+
 // Right panel: the selected row, or the open folder when nothing is selected.
 async function renderSide() {
   const side = $("side");
@@ -397,8 +454,14 @@ async function renderSide() {
   ]);
   if (seq !== state.sideSeq) return;
   const body = el("div", "side-body");
-  if (details.ok) body.append(el("p", "side-path", details.path));
+  if (state.sideError) {
+    const err = el("p", "side-error");
+    err.setAttribute("role", "alert");
+    err.append(icon("error"), el("span", null, state.sideError));
+    body.append(err);
+  }
   if (item.is_dir) {
+    if (details.ok) body.append(el("p", "side-path", details.path));
     const meta = [formatSize(item.size), count(item.child_count, "item", "items")];
     if (item.segments.length) meta.push(`${formatPercent(item.share_parent)} of ${f.node.name}`);
     body.append(el("p", "side-meta", meta.join(" · ")));
@@ -420,16 +483,9 @@ async function renderSide() {
       body.append(ul);
     }
   } else {
-    const dl = el("dl", "facts");
-    const ext = details.ok && details.extension ? `${details.extension.toUpperCase()} file` : "File";
-    fact(dl, "Type", ext);
-    fact(dl, "Size", formatSize(item.size));
-    fact(dl, "Of this folder", formatPercent(item.share_parent));
-    if (details.ok) fact(dl, "Of the scan", formatPercent(details.share_root));
-    fact(dl, "Modified", formatDate(item.mtime));
-    body.append(dl);
+    fileDetails(body, item, details);
   }
-  const kicker = item === f.node ? "Open folder" : item.is_dir ? "Folder" : "File";
+  const kicker = item === f.node ? "Open folder" : item.is_dir ? "Folder" : "File details";
   side.replaceChildren(sideHead(item.is_dir ? "folder" : "file", kicker, item.name), body);
   side.hidden = false;
 }
@@ -489,6 +545,8 @@ async function startScan(location) {
   }
   state.location = location;
   state.error = null;
+  state.flash = null;
+  state.sideError = null;
   state.disconnected = false;
   state.lastScan = null;
   state.progress = null;
@@ -524,7 +582,11 @@ async function openFolder(segments, selectName = null, focus = false) {
   state.folder = res;
   state.path = res.node.segments;
   state.error = null;
-  if (moved) state.selected = selectName;
+  if (moved) {
+    state.selected = selectName;
+    state.flash = null;
+    state.sideError = null;
+  }
   renderTop();
   renderBreadcrumb();
   renderList(focus);
@@ -534,6 +596,11 @@ async function openFolder(segments, selectName = null, focus = false) {
 function select(name) {
   if (name === state.selected) return;
   state.selected = name;
+  state.sideError = null;
+  if (state.flash) {
+    state.flash = null;
+    renderNotice();
+  }
   for (const b of rowButtons()) b.setAttribute("aria-pressed", String(b.dataset.name === name));
   tabbableRow();
   renderSide();
@@ -543,6 +610,57 @@ function goUp() {
   if (!state.folder || state.folder.is_root) return;
   const segs = state.folder.node.segments;
   openFolder(segs.slice(0, -1), segs[segs.length - 1], true);
+}
+
+async function reveal(item) {
+  const res = await call("open_in_file_manager", item.segments);
+  state.sideError = res.ok ? null : res.error.message;
+  if (!res.ok) renderSide();
+}
+
+// Resolves true only if the user picks "Move to Trash". Cancel has focus first; Esc cancels.
+function confirmTrash(item) {
+  const dlg = $("confirm");
+  $("confirm-name").textContent = item.name;
+  $("confirm-size").textContent = formatSize(item.size);
+  const back = document.activeElement;
+  dlg.returnValue = "";
+  dlg.showModal();
+  $("confirm-cancel").focus();
+  return new Promise((resolve) => {
+    const done = () => {
+      if (back && back.isConnected) back.focus();
+      resolve(dlg.returnValue === "trash");
+    };
+    dlg.addEventListener("close", done, { once: true });
+  });
+}
+
+// After a move the totals update in place (no rescan); the next row gets the selection.
+async function trashItem(item) {
+  const d = await call("get_details", item.segments);
+  if (!d.ok || d.trash_blocked) {
+    state.sideError = d.ok ? d.trash_blocked : d.error.message; // read-only drive, scan running
+    renderSide();
+    return;
+  }
+  if (!(await confirmTrash(item))) return;
+  const res = await call("move_to_trash", item.segments, true);
+  const gone = res.ok || res.error.code === "not_found";
+  if (!gone) {
+    state.sideError = res.error.message;
+    renderSide();
+    return;
+  }
+  const names = state.folder ? state.folder.children.map((c) => c.name) : [];
+  const i = names.indexOf(item.name);
+  state.selected = names[i + 1] ?? names[i - 1] ?? null;
+  state.sideError = null;
+  state.flash = res.ok
+    ? { kind: "done", icon: "trash", text: `Moved "${item.name}" (${formatSize(item.size)}) to the Trash.` }
+    : { kind: "error", icon: "error", text: res.error.message };
+  await openFolder(state.path, null, true);
+  loadUsage();
 }
 
 // Arrow keys move the selection, Enter opens a folder, Backspace goes up.
@@ -562,6 +680,13 @@ function onRowsKey(e) {
     const c = childByName(btns[i].dataset.name);
     if (c && c.is_dir) openFolder(c.segments, null, true);
     else if (c) select(c.name);
+  } else if (e.key === "Delete" && i >= 0) {
+    const c = childByName(btns[i].dataset.name);
+    if (c && !c.is_dir) {
+      e.preventDefault();
+      select(c.name);
+      trashItem(c); // asks first; blocked items (read-only drive) show why instead
+    }
   }
 }
 
@@ -648,6 +773,7 @@ function bindControls() {
     if (api()) call("set_visible", !document.hidden);
   });
   document.addEventListener("keydown", (e) => {
+    if ($("confirm").open) return; // the modal dialog handles its own keys
     const inSelect = e.target instanceof HTMLSelectElement;
     if ((e.altKey && e.key === "ArrowUp") || (e.key === "Backspace" && !inSelect)) {
       e.preventDefault();

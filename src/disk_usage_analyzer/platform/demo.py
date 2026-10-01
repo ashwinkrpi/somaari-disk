@@ -29,8 +29,11 @@ _FOLDERS = {
 
 
 def _files(rng: random.Random, prefix: str, ext: str, lo: int, hi: int, n: int) -> dict:
+    day = 86_400
     return {
-        f"{prefix} {i + 1:03d}.{ext}": FakeFile(rng.randint(lo, hi), mtime=_DATE - i * 86_400)
+        f"{prefix} {i + 1:03d}.{ext}": FakeFile(
+            rng.randint(lo, hi), mtime=_DATE - i * day, created=_DATE - (i + 30) * day
+        )
         for i in range(n)
     }
 
