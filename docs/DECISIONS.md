@@ -8,5 +8,6 @@ Format: `- [date] decision - reason`
 - [2026-10-01] psutil/send2trash not declared until the stage that uses them - keep Stage 0 deps minimal.
 - [2026-10-01] CI installs the package with --no-deps (no pywebview) - tests are core-only and never open windows; avoids GUI deps on runners.
 - [2026-10-01] Git commits use the GitHub noreply address via repo-local config - no personal email in history.
+- [2026-10-01] PSF-2.0 added to allowed licenses - permissive; needed for typing_extensions (pywebview dep).
 
 ## Deferred

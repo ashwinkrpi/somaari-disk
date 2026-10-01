@@ -1,5 +1,5 @@
 # Third-party notices
-Add a row here whenever a dependency or bundled asset is added. Permissive licenses only (MIT, BSD, Apache-2.0, SIL OFL). Verify the license on the package page when adding.
+Add a row here whenever a dependency or bundled asset is added. Permissive licenses only (MIT, BSD, Apache-2.0, PSF-2.0, SIL OFL). Verify the license on the package page when adding.
 
 | Component | Use | License | Bundled? |
 |---|---|---|---|
