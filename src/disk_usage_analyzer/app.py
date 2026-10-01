@@ -29,6 +29,25 @@ def js_event_call(event: str, payload: dict) -> str:
     return f"window.duaEvent && window.duaEvent({json.dumps(event)}, {json.dumps(payload)})"
 
 
+def wire_window_events(events, api: Api) -> None:
+    """Hook window events to the api. pywebview puts handler return values in a set,
+    so handlers must return None (api methods return dicts, which are unhashable)."""
+
+    def on_visible() -> None:
+        api.set_visible(True)
+
+    def on_hidden() -> None:
+        api.set_visible(False)
+
+    def on_closed() -> None:
+        api.shutdown()
+
+    events.shown += on_visible
+    events.restored += on_visible
+    events.minimized += on_hidden
+    events.closed += on_closed
+
+
 def run(demo: bool = False, debug: bool = False) -> int:
     import webview  # lazy: heavy, GUI-only
 
@@ -44,9 +63,6 @@ def run(demo: bool = False, debug: bool = False) -> int:
     )
     assert window is not None
     api.set_emitter(lambda event, payload: window.evaluate_js(js_event_call(event, payload)))
-    window.events.shown += lambda: api.set_visible(True)
-    window.events.restored += lambda: api.set_visible(True)
-    window.events.minimized += lambda: api.set_visible(False)
-    window.events.closed += api.shutdown
+    wire_window_events(window.events, api)
     webview.start(gui="gtk", debug=debug)
     return 0

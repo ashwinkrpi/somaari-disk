@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from disk_usage_analyzer.api.bridge import Api, usage_level
-from disk_usage_analyzer.app import js_event_call
+from disk_usage_analyzer.app import js_event_call, wire_window_events
 from disk_usage_analyzer.core.models import Volume
 from disk_usage_analyzer.core.tree import find_node, remove_node, sorted_children
 from disk_usage_analyzer.platform.demo import demo_platform
@@ -622,6 +622,45 @@ def test_js_event_call_escapes_payload():
     js = js_event_call("scan_done", {"name": "</script> \"'"})
     assert js.startswith('window.duaEvent && window.duaEvent("scan_done", {')
     assert " " not in js
+
+
+class FakeEvent:
+    """Mimics pywebview's Event: += adds a handler; fire() collects results in a set."""
+
+    def __init__(self):
+        self.handlers = []
+
+    def __iadd__(self, handler):
+        self.handlers.append(handler)
+        return self
+
+    def fire(self):
+        return {h() for h in self.handlers}
+
+
+class FakeWindowEvents:
+    def __init__(self):
+        self.shown, self.restored = FakeEvent(), FakeEvent()
+        self.minimized, self.closed = FakeEvent(), FakeEvent()
+
+
+def test_window_event_handlers_return_hashable_none():
+    calls = []
+
+    class SpyApi:
+        def set_visible(self, visible):
+            calls.append(("visible", visible))
+            return {"ok": True}
+
+        def shutdown(self):
+            calls.append(("shutdown",))
+            return {"ok": True}
+
+    events = FakeWindowEvents()
+    wire_window_events(events, SpyApi())
+    for name in ("shown", "minimized", "restored", "closed"):
+        assert getattr(events, name).fire() == {None}
+    assert calls == [("visible", True), ("visible", False), ("visible", True), ("shutdown",)]
 
 
 def test_demo_platform_scans():
