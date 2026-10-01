@@ -1,4 +1,7 @@
-"""Command line: `scan <path>` prints the largest items. A frontend, so it formats sizes."""
+"""Command line: `scan <path>` prints the largest items, `volumes` lists drives.
+
+A frontend, so it formats sizes.
+"""
 
 from __future__ import annotations
 
@@ -40,13 +43,16 @@ def _run(scanner: Scanner, root: Path) -> ScanResult:
     return box[0]
 
 
-def print_report(result: ScanResult, top: int, files: int, by: str, out=sys.stdout) -> None:
+def print_report(result: ScanResult, top: int, files: int, by: str, out=None) -> None:
+    out = out or sys.stdout  # resolved per call so redirected stdout is honoured
     root = result.root
     total = getattr(root, by)
     head = f"{result.root_path}  {fmt_size(total)}  ({result.files} files, {result.dirs} folders)"
     print(head, file=out)
     if result.cancelled:
         print("Scan cancelled: results are partial.", file=out)
+    if result.volume_lost:
+        print("Drive disconnected during the scan: results are partial.", file=out)
     items, rest = top_children(root, top, by)
     for c in items:
         print(f"  {fmt_size(getattr(c, by)):>10}  {c.name}{'/' if c.is_dir else ''}", file=out)
@@ -91,4 +97,28 @@ def main(argv: list[str] | None = None, platform: Platform | None = None) -> int
         print(f"Cannot scan {args.path}: {msg}", file=sys.stderr)
         return 1
     print_report(result, args.top, args.files, "size_on_disk" if args.on_disk else "size")
+    if result.volume_lost:
+        return 2
     return 130 if result.cancelled else 0
+
+
+def volumes_main(argv: list[str] | None = None, platform: Platform | None = None, out=None) -> int:
+    out = out or sys.stdout
+    argparse.ArgumentParser(prog="disk-usage-analyzer volumes").parse_args(argv)
+    for v in (platform or get_platform()).list_volumes():
+        flags = [
+            name
+            for name, on in (
+                ("system", v.is_system),
+                ("removable", v.is_removable),
+                ("network", v.is_network),
+                ("read-only", v.is_read_only),
+            )
+            if on
+        ]
+        print(
+            f"{fmt_size(v.used):>10} / {fmt_size(v.total):<10} {v.fs_type:<8} "
+            f"{v.mount_point}  [{v.label}] {v.device_name} {' '.join(flags)}".rstrip(),
+            file=out,
+        )
+    return 0

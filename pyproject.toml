@@ -11,6 +11,8 @@ requires-python = ">=3.11"
 dependencies = [
     "pywebview>=5",
     "platformdirs>=4",
+    "psutil>=5.9",
+    "send2trash>=1.8",
 ]
 
 [project.optional-dependencies]

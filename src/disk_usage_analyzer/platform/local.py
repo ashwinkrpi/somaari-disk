@@ -1,7 +1,8 @@
-"""os.scandir-based platform shared by Linux and Windows until Stage 2/7 split it."""
+"""os.scandir-based base shared by LinuxPlatform and WindowsPlatform."""
 
 from __future__ import annotations
 
+import errno
 import os
 import stat as st
 from pathlib import Path
@@ -28,6 +29,8 @@ def _info(name: str, s: os.stat_result) -> EntryInfo:
 
 
 class LocalPlatform(Platform):
+    """Real-filesystem parts that are the same on every OS. Subclasses add the rest."""
+
     def stat(self, path: Path) -> EntryInfo:
         return _info(path.name or str(path), os.lstat(path))
 
@@ -40,3 +43,19 @@ class LocalPlatform(Platform):
                 except OSError as e:
                     listing.errors.append((entry.name, e))
         return listing
+
+    def trash(self, path: Path) -> None:
+        if not os.path.lexists(path):
+            raise FileNotFoundError(errno.ENOENT, "not found", str(path))
+        if path == Path(path.anchor) or os.path.ismount(path):
+            raise PermissionError(errno.EPERM, "cannot trash a volume root", str(path))
+        if not os.access(path.parent, os.W_OK):
+            raise PermissionError(errno.EACCES, "folder is read-only", str(path))
+        from send2trash import send2trash  # lazy: only on user action
+
+        try:
+            send2trash(path)  # trash of the item's own volume (.Trash-<uid> on USB, Recycle Bin)
+        except OSError:
+            raise
+        except Exception as e:  # send2trash raises plain Exception on some failures
+            raise OSError(errno.EIO, str(e), str(path)) from e

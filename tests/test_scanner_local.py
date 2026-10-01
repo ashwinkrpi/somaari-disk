@@ -7,13 +7,13 @@ import pytest
 
 from disk_usage_analyzer.__main__ import main
 from disk_usage_analyzer.core.scanner import Scanner
-from disk_usage_analyzer.platform.local import LocalPlatform
+from disk_usage_analyzer.platform import get_platform
 
 IS_WINDOWS = sys.platform == "win32"
 
 
 def scan(path, **kw):
-    return Scanner(LocalPlatform(), **kw).scan(path)
+    return Scanner(get_platform(), **kw).scan(path)
 
 
 def names(node):

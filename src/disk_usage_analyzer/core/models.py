@@ -5,6 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ..platform.base import Permissions, Volume
+
+__all__ = ["Node", "Permissions", "RollUp", "ScanProgress", "ScanResult", "ScanWarning", "Volume"]
+
 
 class Node:
     """One file or folder. Slots keep the tree compact; dirs have a children list."""
@@ -38,7 +42,7 @@ class Node:
 
 @dataclass(frozen=True, slots=True)
 class ScanWarning:
-    kind: str  # "permission" | "vanished" | "error" | "other_filesystem"
+    kind: str  # "permission" | "vanished" | "error" | "other_filesystem" | "volume_lost"
     path: tuple[str, ...]  # segments relative to the scan root
     message: str = ""
 
@@ -67,6 +71,7 @@ class ScanResult:
     root_path: Path
     warnings: list[ScanWarning] = field(default_factory=list)
     cancelled: bool = False
+    volume_lost: bool = False  # device unplugged/unmounted mid-scan: results are partial
     files: int = 0
     dirs: int = 0
     links_skipped: int = 0

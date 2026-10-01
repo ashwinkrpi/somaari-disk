@@ -6,6 +6,7 @@ tree and hard-link set need no locks.
 
 from __future__ import annotations
 
+import errno
 import sys
 import threading
 import time
@@ -18,6 +19,13 @@ from .models import Node, ScanProgress, ScanResult, ScanWarning
 from .tree import path_segments
 
 ProgressCallback = Callable[[ScanProgress], None]
+
+# errno values that mean the device itself is gone, not just one folder.
+_DEVICE_GONE = frozenset(
+    getattr(errno, n)
+    for n in ("ENODEV", "ENXIO", "ENOTCONN", "ESTALE", "ESHUTDOWN")
+    if hasattr(errno, n)
+)
 
 
 def _warning(err: OSError, segments: tuple[str, ...]) -> ScanWarning:
@@ -93,12 +101,20 @@ class Scanner:
                 if self._cancel.is_set():
                     result.cancelled = True
                     break
+                if result.volume_lost:
+                    break
                 done, _ = wait(pending, timeout=self._interval, return_when=FIRST_COMPLETED)
                 for fut in done:
                     node, path = pending.pop(fut)
                     try:
                         listing = fut.result()
                     except OSError as e:
+                        if not isinstance(e, PermissionError) and self._lost(root, root_dev, e):
+                            result.volume_lost = True
+                            result.warnings.append(
+                                ScanWarning("volume_lost", (), e.strerror or str(e))
+                            )
+                            break
                         result.warnings.append(_warning(e, path_segments(node)))
                         continue
                     base = path_segments(node) if listing.errors else ()
@@ -145,7 +161,9 @@ class Scanner:
                     last_report = now
                     self._report(result, total, now - start)
         finally:
-            pool.shutdown(wait=not result.cancelled, cancel_futures=True)
+            # Don't wait on workers that may be stuck on a cancelled scan or a dead device.
+            stop_now = result.cancelled or result.volume_lost
+            pool.shutdown(wait=not stop_now, cancel_futures=True)
 
         for d in reversed(dirs_in_order):  # children are summed before their parents
             for c in d.children or ():
@@ -155,6 +173,18 @@ class Scanner:
         if self._progress:
             self._report(result, total, result.elapsed)
         return result
+
+    def _lost(self, root: Path, root_dev: int | None, err: OSError) -> bool:
+        """True if the scanned volume is gone (unplugged, unmounted), not just one folder."""
+        if err.errno in _DEVICE_GONE:
+            return True
+        try:
+            info = self._platform.stat(root)
+        except OSError:
+            return True
+        if info.kind is not Kind.DIR:
+            return True
+        return root_dev is not None and info.dev is not None and info.dev != root_dev
 
     def _report(self, result: ScanResult, total: int, elapsed: float) -> None:
         assert self._progress is not None

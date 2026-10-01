@@ -14,7 +14,15 @@ Format: `- [date] decision - reason`
 - [2026-10-01] Folder apparent size = sum of contents; size on disk also counts the folder's own blocks (like du). Size on disk = st_blocks*512, falling back to apparent size where st_blocks is missing (Windows, until Stage 7).
 - [2026-10-01] Repeat hard links stay in the tree with size 0 (counted once per (dev, inode)). Symlinks and reparse-point dirs are skipped and counted, not shown.
 - [2026-10-01] Dirs on another filesystem appear empty with an other_filesystem warning unless cross_mounts=True.
+- [2026-10-01] Stage 2: psutil + send2trash declared as dependencies (both BSD-3-Clause, already in THIRD-PARTY-NOTICES); psutil for the mount table/usage (comes from apt on the Pi), send2trash for per-volume trash on Linux and Recycle Bin on Windows. Both lazy-imported; CI tests stub them.
+- [2026-10-01] Volume and Permissions dataclasses live in platform/base.py, re-exported by core/models - platform must not import core.
+- [2026-10-01] Hot-plug = core VolumeWatcher polling Platform.list_volumes (default 3 s) instead of a per-platform watch_volumes - one implementation for all OSes, testable with fake; paused watcher blocks on an Event (0 CPU). Change = volume added/removed/relabelled/remounted, not free-space drift.
+- [2026-10-01] LocalPlatform is now an abstract shared base; get_platform() picks LinuxPlatform or WindowsPlatform. test_scanner_local switched to get_platform() because LocalPlatform can no longer be instantiated.
+- [2026-10-01] Volume lost mid-scan: partial result with volume_lost=True and one volume_lost warning, workers not awaited (may hang on a dead device); CLI exit code 2.
+- [2026-10-01] reveal opens the containing folder with xdg-open; it cannot select the file. Trash refuses volume roots and items in read-only folders before calling send2trash.
 
 ## Deferred
+- reveal with the file selected (org.freedesktop.FileManager1.ShowItems over D-Bus) - Stage 5 if wanted.
+- Volume id across replug (filesystem UUID) and lsblk mount-point matching for LVM/LUKS mappers - Stage 6 hardware testing.
 - Windows hard-link ids and true size on disk (scandir stat lacks st_ino/st_nlink/st_blocks) - Stage 7.
 - Memory benchmark of the scan tree on a large real volume - Stage 6.

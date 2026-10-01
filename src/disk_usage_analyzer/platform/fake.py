@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import errno
+import threading
 from dataclasses import dataclass, field
 from pathlib import Path, PurePath
 
-from .base import EntryInfo, Kind, Listing, Platform
+from .base import EntryInfo, Kind, Listing, Permissions, Platform, Volume
 
 BLOCK = 4096
 
@@ -18,6 +19,8 @@ class FakeFile:
     mtime: int = 0
     file_id: int | None = None  # same id = hard links to one file
     stat_error: type[OSError] | None = None  # raised when the entry is stat'ed
+    owner: str = "user"
+    read_only: bool = False
 
 
 @dataclass
@@ -27,6 +30,8 @@ class FakeDir:
     dev: int | None = None  # None = inherit from parent
     list_error: type[OSError] | None = None  # raised when the dir is listed
     stat_error: type[OSError] | None = None
+    owner: str = "user"
+    read_only: bool = False  # also blocks trashing its children
 
 
 @dataclass
@@ -43,13 +48,34 @@ def _err(cls: type[OSError], path: PurePath) -> OSError:
 
 
 class FakePlatform(Platform):
-    def __init__(self, tree: FakeDir, root: Path = Path("fake-root"), dev: int = 1):
+    """Records trash/reveal calls instead of acting. `volumes` may be edited to fake hot-plug.
+
+    vanish_after=N: the volume disappears after N directory listings (unplugged mid-scan).
+    """
+
+    def __init__(
+        self,
+        tree: FakeDir,
+        root: Path = Path("fake-root"),
+        dev: int = 1,
+        volumes: list[Volume] | None = None,
+        vanish_after: int | None = None,
+    ):
         self.root = root
         self.tree = tree
         if tree.dev is None:
             tree.dev = dev
+        self.volumes = list(volumes or [])
+        self.trashed: list[Path] = []
+        self.revealed: list[Path] = []
+        self.gone = False
+        self._vanish_after = vanish_after
+        self._listings = 0
+        self._lock = threading.Lock()
 
     def _lookup(self, path: Path) -> tuple[FakeNode, int]:
+        if self.gone:
+            raise _err(FileNotFoundError, path)
         node: FakeNode = self.tree
         dev = self.tree.dev or 0
         try:
@@ -82,6 +108,12 @@ class FakePlatform(Platform):
         return self._info(path.name or str(path), node, dev)
 
     def scandir(self, path: Path) -> Listing:
+        with self._lock:
+            self._listings += 1
+            if self._vanish_after is not None and self._listings > self._vanish_after:
+                self.gone = True
+        if self.gone:
+            raise _err(OSError, path)  # EIO, as from a yanked USB stick
         node, dev = self._lookup(path)
         if not isinstance(node, FakeDir):
             raise _err(NotADirectoryError, path)
@@ -94,3 +126,35 @@ class FakePlatform(Platform):
             else:
                 listing.entries.append(self._info(name, child, dev))
         return listing
+
+    def list_volumes(self) -> list[Volume]:
+        return [] if self.gone else list(self.volumes)
+
+    def owner_and_perms(self, path: Path) -> Permissions:
+        node, _ = self._lookup(path)
+        if isinstance(node, FakeLink):
+            return Permissions("user", "user", "lrwxrwxrwx", False)
+        is_dir = isinstance(node, FakeDir)
+        if node.read_only:
+            mode = "dr-xr-xr-x" if is_dir else "-r--r--r--"
+        else:
+            mode = "drwxr-xr-x" if is_dir else "-rw-r--r--"
+        return Permissions(node.owner, node.owner, mode, node.read_only)
+
+    def is_hidden(self, path: Path) -> bool:
+        return path.name.startswith(".")
+
+    def trash(self, path: Path) -> None:
+        if path == self.root:
+            raise _err(PermissionError, path)
+        self._lookup(path)
+        parent, _ = self._lookup(path.parent)
+        assert isinstance(parent, FakeDir)
+        if parent.read_only:
+            raise _err(PermissionError, path)
+        del parent.children[path.name]
+        self.trashed.append(path)
+
+    def reveal(self, path: Path) -> None:
+        self._lookup(path)
+        self.revealed.append(path)

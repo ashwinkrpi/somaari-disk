@@ -1,10 +1,16 @@
 """OS access layer (linux, windows, fake)."""
 
+import sys
+
 from .base import Platform
 
 
 def get_platform() -> Platform:
-    """Real platform for this machine. Stage 2 chooses linux/windows by sys.platform."""
-    from .local import LocalPlatform
+    """Real platform for this machine, chosen by sys.platform."""
+    if sys.platform == "win32":
+        from .windows import WindowsPlatform
 
-    return LocalPlatform()
+        return WindowsPlatform()
+    from .linux import LinuxPlatform  # Linux; other POSIX systems are untested
+
+    return LinuxPlatform()

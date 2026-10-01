@@ -1,4 +1,4 @@
-"""Entry point: open the UI in a pywebview window, or `scan <path>` on the command line."""
+"""Entry point: open the UI in a pywebview window, or `scan <path>` / `volumes` on the CLI."""
 
 import sys
 from pathlib import Path
@@ -12,6 +12,10 @@ def main(argv: list[str] | None = None) -> int:
         from .cli import main as cli_main
 
         return cli_main(args[1:])
+    if args[:1] == ["volumes"]:
+        from .cli import volumes_main
+
+        return volumes_main(args[1:])
 
     import webview  # lazy: heavy, GUI-only
 
