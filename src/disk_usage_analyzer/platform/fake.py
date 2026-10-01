@@ -1,0 +1,96 @@
+"""In-memory platform for tests and demo mode. Never touches the real filesystem."""
+
+from __future__ import annotations
+
+import errno
+from dataclasses import dataclass, field
+from pathlib import Path, PurePath
+
+from .base import EntryInfo, Kind, Listing, Platform
+
+BLOCK = 4096
+
+
+@dataclass
+class FakeFile:
+    size: int = 0
+    size_on_disk: int | None = None  # default: rounded up to BLOCK
+    mtime: int = 0
+    file_id: int | None = None  # same id = hard links to one file
+    stat_error: type[OSError] | None = None  # raised when the entry is stat'ed
+
+
+@dataclass
+class FakeDir:
+    children: dict[str, FakeFile | FakeDir | FakeLink] = field(default_factory=dict)
+    mtime: int = 0
+    dev: int | None = None  # None = inherit from parent
+    list_error: type[OSError] | None = None  # raised when the dir is listed
+    stat_error: type[OSError] | None = None
+
+
+@dataclass
+class FakeLink:
+    target: str = ""
+
+
+FakeNode = FakeFile | FakeDir | FakeLink
+
+
+def _err(cls: type[OSError], path: PurePath) -> OSError:
+    code = {PermissionError: errno.EACCES, FileNotFoundError: errno.ENOENT}.get(cls, errno.EIO)
+    return cls(code, "fake error", str(path))
+
+
+class FakePlatform(Platform):
+    def __init__(self, tree: FakeDir, root: Path = Path("fake-root"), dev: int = 1):
+        self.root = root
+        self.tree = tree
+        if tree.dev is None:
+            tree.dev = dev
+
+    def _lookup(self, path: Path) -> tuple[FakeNode, int]:
+        node: FakeNode = self.tree
+        dev = self.tree.dev or 0
+        try:
+            parts = path.relative_to(self.root).parts
+        except ValueError:
+            raise _err(FileNotFoundError, path) from None
+        for part in parts:
+            if not isinstance(node, FakeDir) or part not in node.children:
+                raise _err(FileNotFoundError, path)
+            node = node.children[part]
+            if isinstance(node, FakeDir) and node.dev is not None:
+                dev = node.dev
+        return node, dev
+
+    @staticmethod
+    def _info(name: str, node: FakeNode, dev: int) -> EntryInfo:
+        if isinstance(node, FakeLink):
+            return EntryInfo(name, Kind.LINK)
+        if isinstance(node, FakeDir):
+            return EntryInfo(name, Kind.DIR, 0, BLOCK, node.mtime, node.dev or dev)
+        on_disk = node.size_on_disk
+        if on_disk is None:
+            on_disk = -(-node.size // BLOCK) * BLOCK
+        return EntryInfo(name, Kind.FILE, node.size, on_disk, node.mtime, dev, node.file_id)
+
+    def stat(self, path: Path) -> EntryInfo:
+        node, dev = self._lookup(path)
+        if not isinstance(node, FakeLink) and node.stat_error:
+            raise _err(node.stat_error, path)
+        return self._info(path.name or str(path), node, dev)
+
+    def scandir(self, path: Path) -> Listing:
+        node, dev = self._lookup(path)
+        if not isinstance(node, FakeDir):
+            raise _err(NotADirectoryError, path)
+        if node.list_error:
+            raise _err(node.list_error, path)
+        listing = Listing()
+        for name, child in node.children.items():
+            if not isinstance(child, FakeLink) and child.stat_error:
+                listing.errors.append((name, _err(child.stat_error, path / name)))
+            else:
+                listing.entries.append(self._info(name, child, dev))
+        return listing
