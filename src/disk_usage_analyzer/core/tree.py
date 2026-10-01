@@ -53,15 +53,33 @@ def sorted_children(
     return top, rest
 
 
+def display_name(name: str) -> str:
+    """Name safe to print or encode as UTF-8. Bytes that are not valid UTF-8 (kept by the OS
+    as lone surrogates) become U+FFFD; valid names come back unchanged."""
+    try:
+        name.encode("utf-8")
+        return name
+    except UnicodeEncodeError:
+        return name.encode("utf-8", "surrogateescape").decode("utf-8", "replace")
+
+
+def _child(node: Node, name: str) -> Node | None:
+    children = node.children or ()
+    for c in children:
+        if c.name == name:
+            return c
+    # A non-UTF-8 name may come back from the UI with U+FFFD in place of its raw bytes:
+    # accept that only when exactly one child matches.
+    shown = display_name(name)
+    matches = [c for c in children if c.name != shown and display_name(c.name) == shown]
+    return matches[0] if len(matches) == 1 else None
+
+
 def find_node(root: Node, segments: tuple[str, ...] | list[str]) -> Node | None:
     """Node at segments below root, or None if it is not in the tree."""
-    node = root
+    node: Node | None = root
     for name in segments:
-        if not node.children:
-            return None
-        node = next((c for c in node.children if c.name == name), None)  # type: ignore[assignment]
-        if node is None:
-            return None
+        node = _child(node, name) if node is not None else None
     return node
 
 

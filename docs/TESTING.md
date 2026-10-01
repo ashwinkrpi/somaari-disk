@@ -1,0 +1,57 @@
+# Testing
+
+Automated: `.venv/bin/pytest -q` (fake platform + tmp_path only) and `.venv/bin/ruff check .`.
+Below is the manual checklist for real hardware. Run from the Pi desktop, or over SSH with
+`DISPLAY=:0`. Never put real file names or paths in issues, screenshots or notes; describe them
+("a folder with an emoji name").
+
+## Daily (about 10 minutes)
+
+1. `.venv/bin/pytest -q`: all pass.
+2. Start the app: `.venv/bin/python -m disk_usage_analyzer`.
+   - The first start on a location scans it. Later starts open the saved scan right away,
+     with the notice "Showing the last scan, from <date>".
+   - Rescan replaces it, and the notice goes away.
+3. Internal disk: choose the system drive in Location and let the scan finish. Then:
+   - the usage bar matches `df -h /`,
+   - drill in 3 levels and back with Up / Backspace,
+   - Stop mid-scan shows "Scan stopped early".
+4. USB drive (exFAT or NTFS, HDD or SSD): plug it in while the window is open. Then:
+   - it appears in Location within a few seconds,
+   - scan it,
+   - Move one test file to the Trash: totals drop without a rescan, and the file is in the
+     drive's Trash.
+5. SD card (FAT32 or exFAT, through a reader): same as step 4. If the card has a lock switch,
+   test the read-only case: Move to Trash is disabled with a plain reason.
+6. Unplug mid-scan: start a scan of the USB drive and pull it out. Expect:
+   - "Drive disconnected" right away, no freeze, no crash,
+   - after replugging, the drive is back in Location under the same entry, and opening it
+     shows its saved scan (from before the pull).
+7. Odd names: on a USB stick, make a folder holding:
+   - a name with spaces,
+   - an emoji name,
+   - a 200-character name,
+   - a non-UTF-8 name (`touch "$(printf 'bad-\xff')"` on ext4).
+
+   Scan it. Every item is listed (the bad byte shows as a replacement character). Details
+   opens for each, and Show in folder works.
+8. Log: open `~/.config/disk-usage-analyzer/logs/app.log`.
+   - It has "scan N start/done" lines, but no file names and no home path (home shows as `~`).
+   - It stays under 512 KiB; old logs are `app.log.1` to `.3`.
+9. Idle: hide (minimize) the window. `top -p $(pgrep -f disk_usage_analyzer)` shows about 0%
+   CPU.
+
+## Weekly / before a release
+
+- `.venv/bin/python -m disk_usage_analyzer bench`: a generated 1M-file tree.
+  - Pi 5 reference: scan about 9 s, peak about 530 MiB, saved scan about 14 MiB, load about 6 s.
+  - Investigate a jump of more than 25%.
+- Big real volume: scan the largest drive you have. Watch `ps -o rss= -p <pid>` and note
+  files / time / RSS in docs/DECISIONS.md if they differ much from the bench.
+- Saved scans: `~/.cache/disk-usage-analyzer/scans/` holds at most 8 files. Deleting the
+  folder is safe (the app rescans).
+- Corrupt a saved scan (`truncate -s 100 <file>`), then start the app. It rescans without an
+  error, and the log says "cache unreadable".
+- Dark and light theme, at 1280x800 and 1024x600.
+- CLI: `.venv/bin/python -m disk_usage_analyzer volumes` lists the internal disk, USB and SD
+  with the right file system, removable and read-only flags.

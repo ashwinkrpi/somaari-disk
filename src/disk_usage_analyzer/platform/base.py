@@ -36,7 +36,7 @@ class Listing:
 class Volume:
     """A mounted filesystem. Sizes in bytes."""
 
-    id: str  # stable while mounted: device path, or fs_type:mount_point
+    id: str  # "uuid:<fs uuid>" (stable across replug), else device path or fs_type:mount_point
     label: str
     mount_point: Path
     fs_type: str

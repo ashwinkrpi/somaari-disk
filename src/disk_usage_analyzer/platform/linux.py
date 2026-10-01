@@ -19,7 +19,7 @@ from .local import LocalPlatform
 
 LSBLK_TIMEOUT = 3.0  # seconds
 USAGE_TIMEOUT = 2.0  # network mounts can hang statvfs
-LSBLK_COLUMNS = "NAME,PATH,MOUNTPOINT,LABEL,MODEL,TYPE,TRAN,RM,HOTPLUG,RO"
+LSBLK_COLUMNS = "NAME,PATH,MOUNTPOINT,LABEL,UUID,MODEL,TYPE,TRAN,RM,HOTPLUG,RO"
 
 # Pseudo, virtual and image filesystems that are not user storage.
 SKIP_FS = frozenset(
@@ -66,6 +66,7 @@ def parse_lsblk(text: str) -> dict[str, dict]:
         for d in devs:
             info = {
                 "label": d.get("label") or "",
+                "uuid": d.get("uuid") or "",  # filesystem's own id: survives a replug
                 "model": (d.get("model") or parent.get("model") or "").strip(),
                 "tran": d.get("tran") or parent.get("tran") or "",
                 "removable": _flag(d.get("rm")) or _flag(d.get("hotplug")) or parent["removable"],
@@ -92,6 +93,7 @@ def build_volumes(
 ) -> list[Volume]:
     """Turn mount table rows + lsblk facts into Volumes. Pure: no OS calls except `usage`."""
     seen: set[str] = set()
+    ids: set[str] = set()
     vols: list[Volume] = []
     for p in sorted(partitions, key=lambda p: len(p.mountpoint)):
         fs = p.fstype or ""
@@ -112,6 +114,10 @@ def build_volumes(
         seen.add(key)
         mount = Path(p.mountpoint)
         info = devices.get(p.device) or devices.get(p.mountpoint) or {}
+        vol_id = key
+        if info.get("uuid") and f"uuid:{info['uuid']}" not in ids:  # clones share a UUID
+            vol_id = f"uuid:{info['uuid']}"
+        ids.add(vol_id)
         parts = mount.parts
         is_system = len(parts) == 1 or parts[1] in SYSTEM_TOP
         under_media = parts[1:2] == ("media",) or parts[1:3] == ("run", "media")
@@ -121,7 +127,7 @@ def build_volumes(
         label = info.get("label") or (info.get("model") if is_removable else "") or mount.name
         vols.append(
             Volume(
-                id=key,
+                id=vol_id,
                 label=label or p.device or str(mount),
                 mount_point=mount,
                 fs_type=fs,

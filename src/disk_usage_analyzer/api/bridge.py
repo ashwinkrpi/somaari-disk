@@ -12,7 +12,9 @@ import functools
 import inspect
 import itertools
 import json
+import logging
 import threading
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -22,6 +24,9 @@ from ..core.scanner import Scanner
 from ..core.tree import SORT_KEYS, find_node, path_segments, remove_node, sorted_children
 from ..core.volumes import VolumeWatcher
 from ..platform.base import Platform, TrashUnavailableError
+from .scan_store import ScanStore
+
+log = logging.getLogger(__name__)
 
 Emit = Callable[[str, dict], None]
 HOME_ID = "home"
@@ -71,6 +76,9 @@ def _guard(fn):
             return _fail(e.code, e.message)
         except OSError as e:
             return _os_error(e)
+        except Exception:  # a bug: log it, and keep the UI alive with a plain message
+            log.exception("api %s failed", fn.__name__)
+            return _fail("internal", "Something went wrong. Details are in the app log.")
 
     # pywebview builds the JS stubs from getfullargspec, which reads __signature__ only
     wrapper.__signature__ = inspect.signature(fn)  # type: ignore[attr-defined]
@@ -124,6 +132,11 @@ def _share(part: int, whole: int) -> float:
     return part / whole if whole > 0 else 0.0
 
 
+def _location_kind(location: str) -> str:
+    """Location for the log: never a path (home folder paths name the user)."""
+    return "home" if location == HOME_ID else "volume"
+
+
 def _volume_for(path: Path, volumes: list[Volume]) -> Volume | None:
     """Volume whose mount point is the deepest ancestor of path."""
     best: Volume | None = None
@@ -142,6 +155,7 @@ class Api:
         *,
         home: Path | None = None,
         prefs_path: Path | None = None,
+        cache_dir: Path | None = None,
         volume_interval: float = 3.0,
         progress_interval: float = 0.25,
         workers: int = 4,
@@ -160,6 +174,8 @@ class Api:
         self._result: ScanResult | None = None
         self._location: str | None = None
         self._read_only = False  # the scanned location's drive is mounted read-only
+        self._scanned_at: int | None = None  # UTC time of the scan shown (cached or new)
+        self._store = ScanStore(cache_dir) if cache_dir is not None else None
         self._watcher = VolumeWatcher(platform, self._on_volumes, volume_interval)
 
     # ---- events -------------------------------------------------------------
@@ -211,8 +227,9 @@ class Api:
     # ---- scanning -----------------------------------------------------------
 
     @_guard
-    def scan(self, location: str) -> dict:
-        """Start scanning a location (volume id or "home"); cancels any running scan."""
+    def scan(self, location: str, use_cache: bool = False) -> dict:
+        """Start scanning a location (volume id or "home"); cancels any running scan.
+        use_cache=True shows the last saved scan of that location instead, if there is one."""
         root = self._resolve(location)
         vol = _volume_for(root, self._platform.list_volumes())  # once per scan, not per click
         with self._lock:
@@ -227,12 +244,17 @@ class Api:
                 progress_interval=self._progress_interval,
             )
             self._scan_id, self._scanner = scan_id, scanner
-            self._result, self._location = None, location
+            self._result, self._location, self._scanned_at = None, location, None
+            cached = bool(use_cache) and self._store is not None and self._store.has(location)
             self._thread = threading.Thread(
-                target=self._run_scan, args=(scan_id, scanner, root), daemon=True, name="scan"
+                target=self._run_scan,
+                args=(scan_id, scanner, root, location, cached),
+                daemon=True,
+                name="scan",
             )
             self._thread.start()
-        return {"ok": True, "scan_id": scan_id, "location": location}
+        log.info("scan %d start: %s%s", scan_id, _location_kind(location), " (cached)" * cached)
+        return {"ok": True, "scan_id": scan_id, "location": location, "cached": cached}
 
     def cancel_scan(self) -> dict:
         with self._lock:
@@ -255,10 +277,20 @@ class Api:
             },
         )
 
-    def _run_scan(self, scan_id: int, scanner: Scanner, root: Path) -> None:
+    def _run_scan(
+        self, scan_id: int, scanner: Scanner, root: Path, location: str, use_cache: bool
+    ) -> None:
+        loaded = None
         try:
-            result = scanner.scan(root)
+            if use_cache and self._store is not None:
+                loaded = self._store.load(location)
+            if loaded is not None:
+                result, scanned_at = loaded
+                result.root_path = root  # same drive may mount elsewhere after a replug
+            else:
+                result, scanned_at = scanner.scan(root), int(time.time())
         except Exception as e:  # a scan bug must surface in the UI, not kill silently
+            log.exception("scan %d crashed", scan_id)
             self._emit("error", {"scan_id": scan_id, "code": "scan_failed", "message": str(e)})
             return
         with self._lock:
@@ -267,10 +299,23 @@ class Api:
             self._scanner = None
             failed = not result.root.is_dir and result.files == 0
             if not failed:
-                self._result = result
+                self._result, self._scanned_at = result, scanned_at
+        log.info(
+            "scan %d done: files=%d dirs=%d %.2fs cancelled=%s lost=%s warnings=%s cached=%s",
+            scan_id,
+            result.files,
+            result.dirs,
+            result.elapsed,
+            result.cancelled,
+            result.volume_lost,
+            self._warning_counts(result),
+            loaded is not None,
+        )
         payload: dict[str, Any] = {
             "scan_id": scan_id,
             "ok": not failed,
+            "cached": loaded is not None,
+            "scanned_at": scanned_at,
             "cancelled": result.cancelled,
             "volume_lost": result.volume_lost,
             "files": result.files,
@@ -285,6 +330,14 @@ class Api:
             msg = result.warnings[0].message if result.warnings else "not a folder"
             payload["error"] = {"code": "scan_failed", "message": f"Cannot scan: {msg}"}
         self._emit("scan_done", payload)
+        complete = not (failed or result.cancelled or result.volume_lost)
+        if loaded is None and complete:
+            self._save(location, result, scanned_at)
+
+    def _save(self, location: str, result: ScanResult, scanned_at: int) -> None:
+        """Save the scan for next start, unless a newer scan replaced it meanwhile."""
+        if self._store is not None and self._result is result:
+            self._store.save(location, result, scanned_at)
 
     @staticmethod
     def _warning_counts(result: ScanResult) -> dict[str, int]:
@@ -412,7 +465,9 @@ class Api:
 
     @_guard
     def get_usage(self, location: str | None = None) -> dict:
-        """Used/free of the volume holding `location` (default: the current scan)."""
+        """Used/free of the volume holding `location` (default: the current scan).
+        whole_volume: the location is the drive itself (False for a folder such as Home).
+        scanned_size: size of the finished scan shown for this location, else None."""
         if location is None:
             location = self._location
         if location is None:
@@ -421,6 +476,9 @@ class Api:
         vol = _volume_for(root, self._platform.list_volumes())
         if vol is None:
             raise ApiError("unknown_location", "Can't find the drive for this location.")
+        with self._lock:
+            shown = self._result if location == self._location else None
+            scanned_size = shown.root.size if shown is not None else None
         return {
             "ok": True,
             "volume_id": vol.id,
@@ -431,6 +489,8 @@ class Api:
             "percent": _share(vol.used, vol.total) * 100,
             "level": usage_level(vol.used, vol.total, vol.free),
             "is_read_only": vol.is_read_only,
+            "whole_volume": root == vol.mount_point,
+            "scanned_size": scanned_size,
         }
 
     # ---- actions ------------------------------------------------------------
@@ -466,17 +526,29 @@ class Api:
                 if err["code"] == "not_found":
                     remove_node(node)  # gone outside the app: keep the totals honest
                     fail["removed"] = {"size": node.size, "size_on_disk": node.size_on_disk}
+                    self._save_later()
                 if err["code"] == "os_error":
                     err["message"] = f"Couldn't move this item to the Trash: {err['message']}."
                 err["message"] = TRASH_MESSAGES.get(err["code"], err["message"])
+                log.info("trash failed: %s", err["code"])
                 return fail
             remove_node(node)  # totals update in place: no rescan needed
+            self._save_later()
             return {
                 "ok": True,
                 "removed": {"size": node.size, "size_on_disk": node.size_on_disk},
                 "parent": self._node_dict(parent),
                 "root": self._node_dict(result.root),
             }
+
+    def _save_later(self) -> None:
+        """Re-save the shown scan after a change (trash), off the calling thread."""
+        location, result, scanned_at = self._location, self._result, self._scanned_at
+        if self._store is None or location is None or result is None or scanned_at is None:
+            return
+        threading.Thread(
+            target=self._save, args=(location, result, scanned_at), daemon=True, name="cache"
+        ).start()
 
     # ---- preferences --------------------------------------------------------
 

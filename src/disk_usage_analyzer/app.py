@@ -12,16 +12,21 @@ APP_NAME = "disk-usage-analyzer"
 
 
 def make_api(demo: bool = False) -> Api:
-    from platformdirs import user_config_path
+    from platformdirs import user_cache_path, user_config_path
 
-    prefs = user_config_path(APP_NAME) / "prefs.json"
+    from .logsetup import setup_logging
+
+    config = user_config_path(APP_NAME)
+    setup_logging(config / "logs", Path.home())
+    prefs = config / "prefs.json"
     if demo:
         from .platform.demo import demo_platform
 
-        return Api(demo_platform(), prefs_path=prefs)
+        return Api(demo_platform(), prefs_path=prefs)  # demo scans are never cached
     from .platform import get_platform
 
-    return Api(get_platform(), home=Path.home(), prefs_path=prefs)
+    cache = user_cache_path(APP_NAME) / "scans"
+    return Api(get_platform(), home=Path.home(), prefs_path=prefs, cache_dir=cache)
 
 
 def js_event_call(event: str, payload: dict) -> str:

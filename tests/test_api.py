@@ -327,6 +327,22 @@ def test_get_usage():
     assert make()[0].get_usage()["error"]["code"] == "no_scan"
     assert api.get_usage("dev-a")["total"] == 100 * GB
     assert u["level"] == "ok"
+    assert u["whole_volume"] is True and u["scanned_size"] == 10161  # sample_tree total
+
+
+def test_get_usage_scope_for_folder_scan():
+    home = ROOT / "Docs"  # a folder on the drive, like the home folder
+    plat = FakePlatform(sample_tree(), volumes=[vol()])
+    rec = Recorder()
+    api = Api(plat, rec, home=home)
+    assert api.get_usage("home")["scanned_size"] is None  # nothing scanned yet
+    api.scan("home")
+    assert rec.done.wait(5)
+    u = api.get_usage()
+    assert u["whole_volume"] is False and u["scanned_size"] == 150
+    assert api.get_usage("dev-a")["scanned_size"] is None  # not the shown location
+    assert api.move_to_trash(["x.pdf"], True)["ok"]
+    assert api.get_usage()["scanned_size"] == 50  # follows Move to Trash
 
 
 @pytest.mark.parametrize(

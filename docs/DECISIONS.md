@@ -44,12 +44,23 @@ Format: `- [date] decision - reason`
 - [2026-10-01] The scanned drive's read-only flag is cached per scan (one list_volumes per scan) - get_details runs on every selection and list_volumes runs lsblk on Linux. move_to_trash still re-checks live volumes.
 - [2026-10-01] WCAG AA checked by a test that computes contrast for text (4.5:1) and focus-ring (3:1) token pairs in light and dark - every pair passed with the existing tokens; added --on-destructive (#FFFFFF light, #0F141B dark) for the filled Move to Trash button.
 
+- [2026-10-01] Saved scans: gzip JSON Lines, one node per line, written and read as streams so a 1M-file tree never exists twice in memory (nested JSON would need a full second copy). gzip level 1: on the Pi, speed matters more than the last few MB. Format version in the header; a broken/truncated file (no trailing "end") is deleted and the app rescans. No new dependency.
+- [2026-10-01] Startup and Location change open the saved scan with a dated notice; Rescan/F5 always scans fresh. Only complete scans are saved. File names are hashes of the location id, so odd ids need no escaping.
+- [2026-10-01] Volume id = `uuid:<filesystem UUID>` from lsblk (falls back to device path; a second volume with the same UUID, e.g. a cloned card, keeps its device path). The id survives replug to another /dev node; the cached tree is re-rooted to the current mount point.
+- [2026-10-01] Scanner keeps at most workers x 2 folder listings in the thread pool and the rest in a depth-first stack. Submitting every folder on discovery left one Future (~1 KiB with its Condition) per queued folder: 1M-file bench went from 44.5 s / 1.55 GiB peak to 8.9 s / 527 MiB peak (peak includes the generated input tree).
+- [2026-10-01] Names deduped with a per-scan dict instead of sys.intern: same sharing, and the dict is freed after the scan (the intern table cost ~50 B per unique name for the tree's lifetime).
+- [2026-10-01] Memory budget (bench, Pi 5): scan tree ~133 B/node when names/ints are shared, ~250-300 B/node on a real disk (Node 88 + name ~60 + 3 ints 84). 1M files ~ 250-300 MiB. Saved scan for 1M files: 14 MiB, save 6 s, load 5.5 s. Acceptable for the ~2 GiB budget; no array-packed tree yet.
+- [2026-10-01] Non-UTF-8 names stay as surrogate-escaped str end to end (they reopen the real file). JSON to the UI is ASCII-escaped; display_name() swaps bad bytes for U+FFFD where text must be printed (CLI). find_node accepts the U+FFFD form when exactly one child matches, in case the webview bridge normalizes lone surrogates.
+- [2026-10-01] Log: stdlib RotatingFileHandler (512 KiB x 4) in the platformdirs config dir per BUILD-PLAN; errors="backslashreplace" so odd names cannot break logging. Unexpected api exceptions are logged with traceback and returned as code "internal".
+
 ## Deferred
-- Volume id across replug (filesystem UUID) and lsblk mount-point matching for LVM/LUKS mappers - Stage 6 hardware testing.
+- lsblk mount-point matching for LVM/LUKS mappers - needs that hardware; UUID ids done in Stage 6.
 - Windows hard-link ids and true size on disk (scandir stat lacks st_ino/st_nlink/st_blocks) - Stage 7.
-- Memory benchmark of the scan tree on a large real volume - Stage 6.
+- Memory check on a large real volume (bench covers a generated 1M tree) - manual, see TESTING.md.
 - Show in folder / Move to Trash for selected folders (api supports it; boards show the buttons for files only) - needs a design call.
 - Undo / restore from Trash inside the app - not planned; the OS Trash restores.
 - Sort control and size-on-disk toggle for the list (api supports both) - not in Stage 4 boards; add if wanted.
-- Cache the problems map per scan instead of rebuilding from warnings on each get_children - only if many-warning scans prove slow (Stage 6).
+- Cache the problems map per scan instead of rebuilding from warnings on each get_children - only if a real many-warning scan proves slow.
+- Array-packed tree (sizes/mtimes in array.array) to cut ~85 B/node - only if real volumes exceed the memory budget.
+- Saved-scan staleness hint (e.g. drive free space changed since the scan) - not in plan.
 - Window min size 1024x600 set; visual check vs boards at 1280x800 / 1024x600 needs a human (Stage 4 screens).

@@ -40,3 +40,12 @@
 - Limitations: free space only changes when the Trash is emptied (said in the dialog); Created "Unknown" where the fs/kernel has no birth time; Windows created/reveal still Stage 7.
 - Deferred: folder actions (design call); in-app undo (not planned).
 - CHANGELOG updated: yes.
+
+## Stage 6: Hardening on hardware (2026-10-01)
+- Files: core/cache.py, api/scan_store.py, logsetup.py (new); core/{scanner,tree}.py, api/bridge.py, app.py, cli.py (`bench`), __main__.py, platform/{linux,base}.py, ui/app.js; tests/test_hardening.py (new), test_platform_linux.py, test_ui_static.py; docs/TESTING.md (new), ARCHITECTURE, DECISIONS, CHANGELOG.
+- Tests: 200 passed, 0 skipped (Pi). Lint: ruff check + format clean.
+- Bench (generated 1M files, 100k folders, Pi 5): scan 8.9 s, peak RSS 527 MiB incl. the input tree; saved scan 14 MiB, save 6 s, load 5.5 s. Before the in-flight cap: 44.5 s, 1.55 GiB.
+- Needs me: docs/TESTING.md daily list on real internal disk, USB exFAT/NTFS, SD card, unplug mid-scan + replug (same Location entry, saved scan opens), odd names incl. a non-UTF-8 name through the live webview (bridge round trip untested live), log contents, idle CPU; scan the largest real volume and note RSS.
+- Limitations: saved scan can be stale with no hint beyond its date; tree ~250-300 B/node on real disks; cancel does not interrupt a saved-scan load (a few seconds at 1M).
+- Deferred: array-packed tree, staleness hint, problems-map cache, LVM/LUKS matching (DECISIONS).
+- CHANGELOG updated: yes.

@@ -15,6 +15,7 @@ const state = {
   selected: null, // name of the selected row in the open folder
   usage: null, // last get_usage result
   lastScan: null, // last scan_done payload
+  loadingCache: false, // showing the saved scan of this location while it loads
   disconnected: false, // the scanned drive went away; the list shows the last results
   error: null,
   flash: null, // one-off list notice, e.g. after Move to Trash
@@ -194,6 +195,13 @@ function renderUsage() {
     ? "Reconnect it, then choose it from Location to scan again."
     : `${formatSize(u.used)} used of ${formatSize(u.total)} · ${formatSize(u.free)} free · ${pct}%`;
   $("usage-fill").style.width = `${pct}%`;
+  // The list covers only the scanned folder; say so when that is not the whole drive.
+  const scope = $("usage-scope");
+  scope.hidden = gone || u.whole_volume || u.scanned_size == null;
+  if (!scope.hidden) {
+    const name = state.home && state.location === state.home.id ? "Home folder" : "This folder";
+    scope.textContent = `${name}: ${formatSize(u.scanned_size)} of the ${formatSize(u.used)} used on this drive`;
+  }
   const bar = $("usage-bar");
   bar.setAttribute("aria-valuenow", String(pct));
   bar.setAttribute("aria-valuetext", gone ? info.label : `${pct}% used: ${info.label}`);
@@ -201,6 +209,7 @@ function renderUsage() {
 
 function progressText() {
   const p = state.progress;
+  if (state.loadingCache) return "Opening the last scan...";
   return p ? `${count(p.files, "file", "files")} · ${formatSize(p.size)} so far` : "Starting...";
 }
 
@@ -297,6 +306,7 @@ function noticeFor() {
   if (state.scanning || !d) return null;
   if (d.volume_lost) return { icon: "unplugged", text: "The drive was removed during the scan. Rescan for full totals." };
   if (d.cancelled) return { icon: "scan", text: "Scan stopped early. Sizes are incomplete; press Rescan for full totals." };
+  if (d.cached) return { icon: "scan", text: `Showing the last scan, from ${formatDate(d.scanned_at)}. Press Rescan for current sizes.` };
   const denied = d.warnings.permission || 0;
   if (denied) {
     return { icon: "lock", text: `${count(denied, "item", "items")} couldn't be read (no permission) and aren't counted.` };
@@ -535,7 +545,8 @@ async function loadUsage() {
 }
 
 // Rescanning the same location keeps the open folder; a new location starts at its root.
-async function startScan(location) {
+// cached: show the location's saved scan if it has one (startup, Location change).
+async function startScan(location, cached = false) {
   if (!location) return;
   if (location !== state.location) {
     state.folder = null;
@@ -551,12 +562,15 @@ async function startScan(location) {
   state.lastScan = null;
   state.progress = null;
   state.scanning = true;
+  state.loadingCache = cached;
   render();
-  const res = await call("scan", location);
+  const res = await call("scan", location, cached);
   if (!res.ok) {
     state.scanning = false;
+    state.loadingCache = false;
     state.error = res.error.message;
   } else {
+    if (state.scanning && res.scan_id >= state.scanId) state.loadingCache = res.cached; // scan_done may come first
     state.scanId = Math.max(state.scanId, res.scan_id);
   }
   render();
@@ -725,6 +739,7 @@ const handlers = {
   scan_done(p) {
     if (!isCurrent(p)) return;
     state.scanning = false;
+    state.loadingCache = false;
     state.lastScan = p;
     if (!p.ok) {
       state.error = p.error.message;
@@ -745,7 +760,7 @@ const handlers = {
     if (present) loadUsage();
   },
   error(p) {
-    if (p.scan_id === state.scanId) state.scanning = false;
+    if (p.scan_id === state.scanId) state.scanning = state.loadingCache = false;
     state.error = p.message;
     render();
   },
@@ -759,7 +774,7 @@ window.duaEvent = (event, payload) => {
 // ---- startup ----------------------------------------------------------------
 
 function bindControls() {
-  $("location").addEventListener("change", (e) => startScan(e.target.value));
+  $("location").addEventListener("change", (e) => startScan(e.target.value, true));
   $("up").addEventListener("click", goUp);
   $("rescan").addEventListener("click", rescanOrStop);
   $("rows").addEventListener("keydown", onRowsKey);
@@ -794,7 +809,7 @@ async function start() {
   await loadVolumes();
   call("set_visible", !document.hidden);
   render();
-  startScan(defaultLocation());
+  startScan(defaultLocation(), true);
 }
 
 bindControls();

@@ -192,3 +192,18 @@ def test_ui_has_no_os_paths():
 def test_main_rejects_unknown_args_without_gui(capsys):
     assert main(["--bogus"]) == 2
     assert "webview" not in sys.modules
+
+
+def test_saved_scan_on_start_and_location_change_only():
+    assert "startScan(defaultLocation(), true)" in JS
+    assert "startScan(e.target.value, true)" in JS
+    assert 'call("scan", location, cached)' in JS
+    assert "else startScan(state.location);" in JS  # Rescan button: always a fresh scan
+    assert "Showing the last scan, from ${formatDate(d.scanned_at)}" in JS
+    assert "Opening the last scan..." in JS
+
+
+def test_usage_scope_line_for_folder_scans():
+    assert 'id="usage-scope"' in HTML and ".usage-scope" in CSS
+    assert "u.whole_volume" in JS and "u.scanned_size" in JS
+    assert "used on this drive" in JS

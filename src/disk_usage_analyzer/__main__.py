@@ -1,4 +1,4 @@
-"""Entry point: open the UI window ([--demo] [--debug]), or `scan <path>` / `volumes` CLI."""
+"""Entry point: the UI window ([--demo] [--debug]), or `scan <path>` / `volumes` / `bench`."""
 
 import sys
 
@@ -9,6 +9,10 @@ def main(argv: list[str] | None = None) -> int:
         from .cli import main as cli_main
 
         return cli_main(args[1:])
+    if args[:1] == ["bench"]:
+        from .cli import bench_main
+
+        return bench_main(args[1:])
     if args[:1] == ["volumes"]:
         from .cli import volumes_main
 

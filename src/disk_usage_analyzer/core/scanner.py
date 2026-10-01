@@ -1,14 +1,13 @@
 """Directory scanner: iterative, thread-pooled listing, cancellable, never follows links.
 
-Worker threads only list directories (I/O). The calling thread builds the tree, so the
-tree and hard-link set need no locks. Sizes are added to every ancestor as each folder is
-listed, so `Scanner.result` can be read (as a partial tree) while the scan runs.
+Worker threads only list directories (I/O), a few at a time. The calling thread builds the
+tree, so the tree and hard-link set need no locks. Sizes are added to every ancestor as each
+folder is listed, so `Scanner.result` can be read (as a partial tree) while the scan runs.
 """
 
 from __future__ import annotations
 
 import errno
-import sys
 import threading
 import time
 from collections.abc import Callable
@@ -101,15 +100,21 @@ class Scanner:
         result.dirs = 1
         root_dev = info.dev
         seen_ids: set[tuple[int | None, int]] = set()
+        names: dict[str, str] = {}  # one string per distinct name; dropped after the scan
         total = 0
         last_report = start
 
         pool = ThreadPoolExecutor(self._workers, thread_name_prefix="scan")
-        pending: dict[Future[Listing], tuple[Node, Path]] = {
-            pool.submit(self._platform.scandir, root): (root_node, root)
-        }
+        # Folders wait in a depth-first stack; only a few are in the pool at once. Submitting
+        # every folder as found kept ~1 KiB per queued Future alive (GBs on big trees).
+        todo: list[tuple[Node, Path]] = [(root_node, root)]
+        pending: dict[Future[Listing], tuple[Node, Path]] = {}
+        in_flight = self._workers * 2
         try:
-            while pending:
+            while pending or todo:
+                while todo and len(pending) < in_flight:
+                    item = todo.pop()
+                    pending[pool.submit(self._platform.scandir, item[1])] = item
                 if self._cancel.is_set():
                     result.cancelled = True
                     break
@@ -139,7 +144,7 @@ class Scanner:
                         if e.kind is Kind.LINK:
                             result.links_skipped += 1
                             continue
-                        name = sys.intern(e.name)
+                        name = names.setdefault(e.name, e.name)
                         if e.kind is Kind.DIR:
                             child = Node(name, True, 0, e.size_on_disk, e.mtime, node)
                             result.dirs += 1
@@ -152,9 +157,7 @@ class Scanner:
                                     ScanWarning("other_filesystem", path_segments(child))
                                 )
                             else:
-                                child_path = path / name
-                                fut2 = pool.submit(self._platform.scandir, child_path)
-                                pending[fut2] = (child, child_path)
+                                todo.append((child, path / name))
                             added_on_disk += child.size_on_disk
                         else:
                             size, on_disk = e.size, e.size_on_disk

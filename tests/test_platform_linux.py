@@ -349,3 +349,28 @@ def test_trash_wraps_library_errors(tmp_path, monkeypatch):
     f.write_text("x")
     with pytest.raises(OSError, match="no trash dir"):
         get_platform().trash(f)
+
+
+def test_volume_id_uses_filesystem_uuid():
+    tree = json.loads(json.dumps(LSBLK))
+    stick = tree["blockdevices"][1]["children"][0]
+    stick["uuid"] = "1A2B-3C4D"
+    card = tree["blockdevices"][2]["children"][0]
+    card["uuid"] = "1A2B-3C4D"  # a cloned card: same UUID, must not share the id
+    m = by_mount(build_volumes(PARTS, parse_lsblk(json.dumps(tree)), usage))
+    ids = {m["/media/demo/STICK"].id, m["/media/demo/sd"].id}
+    assert len(ids) == 2 and "uuid:1A2B-3C4D" in ids  # the other falls back to its device
+    assert ids & {"/dev/sda1", "/dev/sdb1"}
+    assert m["/media/demo/NEW"].id == "/dev/sdc1"  # not in lsblk: no UUID known
+
+
+def test_volume_id_survives_replug_to_new_device():
+    def stick_on(dev, mount):
+        dev_info = {"name": dev, "path": f"/dev/{dev}", "tran": "usb", "mountpoint": mount}
+        tree = {"blockdevices": [{**dev_info, "uuid": "1A2B-3C4D", "rm": True}]}
+        parts = [Part(f"/dev/{dev}", mount, "exfat", "rw")]
+        return build_volumes(parts, parse_lsblk(json.dumps(tree)), usage)[0]
+
+    first, again = stick_on("sda1", "/media/demo/STICK"), stick_on("sdb1", "/media/demo/STICK1")
+    assert first.id == again.id == "uuid:1A2B-3C4D"
+    assert first.device_name != again.device_name
