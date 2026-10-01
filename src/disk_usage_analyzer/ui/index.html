@@ -37,11 +37,29 @@
       <ol id="breadcrumb"></ol>
     </nav>
   </header>
+  <section id="usage" class="usage" aria-label="Drive usage" hidden>
+    <div class="usage-row">
+      <p id="usage-state" class="usage-state"></p>
+      <p id="usage-text" class="usage-text"></p>
+    </div>
+    <div id="usage-bar" class="usage-bar" role="progressbar" aria-label="Space used"
+         aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div id="usage-fill" class="usage-fill"></div>
+      <span class="tick tick-50" aria-hidden="true"></span>
+      <span class="tick tick-75" aria-hidden="true"></span>
+    </div>
+  </section>
   <main id="main" class="body">
-    <section class="card status" aria-live="polite">
-      <p id="status-title" class="status-title">Starting...</p>
-      <p id="status-detail" class="status-detail"></p>
+    <section class="card list-panel" aria-labelledby="list-title">
+      <header class="panel-head">
+        <h2 id="list-title">Largest items</h2>
+        <p id="list-meta" class="panel-meta"></p>
+      </header>
+      <div id="notice" class="notice" role="status" hidden></div>
+      <ul id="rows" class="rows" aria-labelledby="list-title"></ul>
+      <div id="list-state" class="state" aria-live="polite" hidden></div>
     </section>
+    <aside id="side" class="card side" aria-label="Selection details" hidden></aside>
   </main>
 </body>
 </html>

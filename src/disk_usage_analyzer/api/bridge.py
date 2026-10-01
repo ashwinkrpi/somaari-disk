@@ -28,6 +28,25 @@ HOME_ID = "home"
 THEMES = ("system", "light", "dark")
 DEFAULT_PREFS: dict[str, Any] = {"theme": "system"}
 MAX_CHILDREN = 500
+# scan warning kind -> "problem" flag on an item: why its size may be incomplete
+PROBLEMS = {
+    "permission": "denied",
+    "error": "unreadable",
+    "vanished": "unreadable",
+    "other_filesystem": "other_drive",
+}
+# get_usage "level" by percent used: < 50, 50 to < 75, 75 to < 100, full
+USAGE_LEVELS = ((50.0, "ok"), (75.0, "filling"), (100.0, "low"))
+
+
+def usage_level(used: int, total: int, free: int) -> str:
+    """ "ok" | "filling" | "low" | "full". Full = no free space left (reserved blocks aside)."""
+    if total <= 0:
+        return "ok"  # size unknown (some network/virtual mounts): nothing to warn about
+    percent = _share(used, total) * 100
+    if free <= 0 or percent >= 100:
+        return "full"
+    return next(level for limit, level in USAGE_LEVELS if percent < limit)
 
 
 class ApiError(Exception):
@@ -258,13 +277,18 @@ class Api:
 
     # ---- tree queries -------------------------------------------------------
 
-    def _need_result(self) -> ScanResult:
-        if self._result is None:
-            raise ApiError("no_scan", "Nothing has been scanned yet.")
-        return self._result
+    def _need_result(self, live: bool = False) -> ScanResult:
+        """The finished scan, or with live=True the partial tree of the running scan."""
+        if self._result is not None:
+            return self._result
+        if live and self._scanner is not None:
+            partial = self._scanner.result
+            if partial is not None and partial.root.is_dir:
+                return partial
+        raise ApiError("no_scan", "Nothing has been scanned yet.")
 
-    def _need_node(self, segments: list[str]) -> tuple[ScanResult, Node]:
-        result = self._need_result()
+    def _need_node(self, segments: list[str], live: bool = False) -> tuple[ScanResult, Node]:
+        result = self._need_result(live)
         node = find_node(result.root, tuple(segments or ()))
         if node is None:
             raise ApiError("not_found", "This item is not in the scan. Rescan to refresh.")
@@ -293,6 +317,17 @@ class Api:
             "share_parent": _share(getattr(node, by), getattr(parent, by)) if parent else 1.0,
         }
 
+    @staticmethod
+    def _problems(result: ScanResult) -> dict[tuple[str, ...], str]:
+        """Segments -> why that item could not be read fully (see PROBLEMS)."""
+        # list() copies first: a running scan may append warnings meanwhile
+        return {w.path: PROBLEMS[w.kind] for w in list(result.warnings) if w.kind in PROBLEMS}
+
+    def _flagged(self, node: Node, by: str, problems: dict[tuple[str, ...], str]) -> dict:
+        d = self._node_dict(node, by)
+        d["problem"] = problems.get(tuple(d["segments"]))
+        return d
+
     @_guard
     def get_children(
         self, segments: list[str] | None = None, sort: str = "size", limit: int = 100, on_disk=False
@@ -303,16 +338,18 @@ class Api:
         limit = max(1, min(int(limit), MAX_CHILDREN))
         by = "size_on_disk" if on_disk else "size"
         with self._lock:
-            result, node = self._need_node(segments or [])
+            result, node = self._need_node(segments or [], live=True)
             if not node.is_dir:
                 raise ApiError("not_a_folder", "This item is a file, not a folder.")
             top, rest = sorted_children(node, limit, sort, by)
+            problems = self._problems(result)
             return {
                 "ok": True,
-                "node": self._node_dict(node, by),
+                "partial": result is not self._result,
+                "node": self._flagged(node, by, problems),
                 "breadcrumb": self._breadcrumb(result, path_segments(node)),
                 "is_root": node.parent is None,
-                "children": [self._node_dict(c, by) for c in top],
+                "children": [self._flagged(c, by, problems) for c in top],
                 "rest": None
                 if rest is None
                 else {"count": rest.count, "size": rest.size, "size_on_disk": rest.size_on_disk},
@@ -322,8 +359,8 @@ class Api:
     def get_details(self, segments: list[str]) -> dict:
         """Everything the detail panel shows for one item."""
         with self._lock:
-            result, node = self._need_node(segments)
-            details = self._node_dict(node)
+            result, node = self._need_node(segments, live=True)
+            details = self._flagged(node, "size", self._problems(result))
             path = result.root_path.joinpath(*details["segments"])
             details["share_root"] = _share(node.size, result.root.size)
         details["ok"] = True
@@ -358,6 +395,7 @@ class Api:
             "used": vol.used,
             "free": vol.free,
             "percent": _share(vol.used, vol.total) * 100,
+            "level": usage_level(vol.used, vol.total, vol.free),
             "is_read_only": vol.is_read_only,
         }
 

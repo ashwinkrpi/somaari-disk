@@ -1,7 +1,8 @@
 """Directory scanner: iterative, thread-pooled listing, cancellable, never follows links.
 
 Worker threads only list directories (I/O). The calling thread builds the tree, so the
-tree and hard-link set need no locks.
+tree and hard-link set need no locks. Sizes are added to every ancestor as each folder is
+listed, so `Scanner.result` can be read (as a partial tree) while the scan runs.
 """
 
 from __future__ import annotations
@@ -38,6 +39,16 @@ def _warning(err: OSError, segments: tuple[str, ...]) -> ScanWarning:
     return ScanWarning(kind, segments, err.strerror or str(err))
 
 
+def _add_up(node: Node | None, size: int, size_on_disk: int) -> None:
+    """Add one folder's newly listed sizes to it and every ancestor."""
+    if not size and not size_on_disk:
+        return
+    while node is not None:
+        node.size += size
+        node.size_on_disk += size_on_disk
+        node = node.parent
+
+
 class Scanner:
     """One scan. Call scan() from a worker thread; cancel() from any thread."""
 
@@ -56,6 +67,7 @@ class Scanner:
         self._progress = progress
         self._interval = progress_interval
         self._cancel = threading.Event()
+        self.result: ScanResult | None = None  # live while scanning; sizes always consistent
 
     def cancel(self) -> None:
         self._cancel.set()
@@ -67,6 +79,7 @@ class Scanner:
     def scan(self, root: Path) -> ScanResult:
         start = time.monotonic()
         result = ScanResult(Node(root.name or str(root)), root)
+        self.result = result
         try:
             info = self._platform.stat(root)
         except OSError as e:
@@ -88,7 +101,6 @@ class Scanner:
         result.dirs = 1
         root_dev = info.dev
         seen_ids: set[tuple[int | None, int]] = set()
-        dirs_in_order = [root_node]  # parents always before their children
         total = 0
         last_report = start
 
@@ -122,6 +134,7 @@ class Scanner:
                         result.warnings.append(_warning(err, (*base, name)))
                     children = node.children
                     assert children is not None
+                    added = added_on_disk = 0
                     for e in listing.entries:
                         if e.kind is Kind.LINK:
                             result.links_skipped += 1
@@ -142,7 +155,7 @@ class Scanner:
                                 child_path = path / name
                                 fut2 = pool.submit(self._platform.scandir, child_path)
                                 pending[fut2] = (child, child_path)
-                                dirs_in_order.append(child)
+                            added_on_disk += child.size_on_disk
                         else:
                             size, on_disk = e.size, e.size_on_disk
                             if e.file_id is not None:
@@ -155,7 +168,10 @@ class Scanner:
                             child = Node(name, False, size, on_disk, e.mtime, node)
                             result.files += 1
                             total += size
+                            added += size
+                            added_on_disk += on_disk
                         children.append(child)
+                    _add_up(node, added, added_on_disk)
                 now = time.monotonic()
                 if self._progress and now - last_report >= self._interval:
                     last_report = now
@@ -165,10 +181,6 @@ class Scanner:
             stop_now = result.cancelled or result.volume_lost
             pool.shutdown(wait=not stop_now, cancel_futures=True)
 
-        for d in reversed(dirs_in_order):  # children are summed before their parents
-            for c in d.children or ():
-                d.size += c.size
-                d.size_on_disk += c.size_on_disk
         result.elapsed = time.monotonic() - start
         if self._progress:
             self._report(result, total, result.elapsed)

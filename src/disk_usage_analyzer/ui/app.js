@@ -11,7 +11,14 @@ const state = {
   scanId: 0,
   progress: null,
   folder: null, // last get_children result
+  path: [], // segments of the open folder
+  selected: null, // name of the selected row in the open folder
+  usage: null, // last get_usage result
+  lastScan: null, // last scan_done payload
+  disconnected: false, // the scanned drive went away; the list shows the last results
   error: null,
+  listSeq: 0, // drop replies to superseded get_children / side panel requests
+  sideSeq: 0,
 };
 
 // ---- formatting (UI only) -------------------------------------------------
@@ -28,6 +35,57 @@ export function formatSize(n) {
 }
 
 const count = (n, one, many) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+
+export function formatPercent(share) {
+  const pct = share * 100;
+  if (pct > 0 && pct < 1) return "<1%";
+  return `${Math.round(pct)}%`;
+}
+
+const formatDate = (epoch) => (epoch ? new Date(epoch * 1000).toLocaleString() : "Unknown");
+
+// ---- dom helpers --------------------------------------------------------------
+
+const ICONS = {
+  ok: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-1.2 14.2L6.6 12l1.4-1.4 2.8 2.8 5.2-5.2 1.4 1.4z",
+  filling: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2a8 8 0 0 1 0 16z",
+  low: "M1 21h22L12 2zm12-3h-2v-2h2zm0-4h-2v-4h2z",
+  full: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm5 13.6L15.6 17 12 13.4 8.4 17 7 15.6 10.6 12 7 8.4 8.4 7 12 10.6 15.6 7 17 8.4 13.4 12z",
+  unplugged: "M16 7V3h-2v4h-4V3H8v4H6v6l4 4v4h4v-4l4-4V7zM3.3 2 2 3.3l18.7 18.7 1.3-1.3z",
+  folder: "M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8z",
+  empty: "M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8zM4 8h16v10H4z",
+  file: "M6 2h8l6 6v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm7 1.5V9h5.5z",
+  lock: "M17 9V7a5 5 0 0 0-10 0v2H5v13h14V9zM9 7a3 3 0 0 1 6 0v2H9z",
+  error: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-2h2zm0-4h-2V7h2z",
+  drive: "M4 5h16l2 9v5H2v-5zm-1 11v1h18v-1zm14 0h2v1h-2z",
+  scan: "M12 4V1L8 5l4 4V6a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z",
+  more: "M6 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z",
+};
+
+const iconTemplate = document.createElement("template");
+
+// The HTML parser puts <svg> in the SVG namespace; ICONS are constants, never user data.
+function icon(name) {
+  iconTemplate.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[name]}"/></svg>`;
+  return iconTemplate.content.firstElementChild;
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined && text !== null) e.textContent = text;
+  return e;
+}
+
+// Usage levels come from the api (thresholds live in Python); never color alone.
+const LEVELS = {
+  ok: { label: "Plenty of space", icon: "ok" },
+  filling: { label: "Filling up", icon: "filling" },
+  low: { label: "Running low", icon: "low" },
+  full: { label: "Disk full", icon: "full" },
+};
+
+const PROBLEM_TAGS = { denied: "No access", unreadable: "Unreadable", other_drive: "Other drive" };
 
 // ---- api ------------------------------------------------------------------
 
@@ -118,36 +176,277 @@ function renderBreadcrumb() {
   );
 }
 
-function renderStatus() {
-  const box = document.querySelector(".status");
-  let title = "";
-  let detail = "";
-  box.dataset.kind = state.error ? "error" : "";
-  if (state.error) {
-    title = state.error;
-  } else if (state.scanning) {
-    const p = state.progress;
-    title = "Scanning...";
-    detail = p
-      ? `${count(p.files, "file", "files")} · ${count(p.dirs, "folder", "folders")} · ${formatSize(p.size)}`
-      : "";
-  } else if (state.folder) {
-    const n = state.folder.node;
-    title = `${n.name}: ${formatSize(n.size)}`;
-    detail = `${count(n.child_count, "item", "items")} · ${formatSize(n.size_on_disk)} on disk`;
-  } else if (!api()) {
-    title = "Open this page from the Disk Usage app.";
-  } else {
-    title = "Choose a location to scan.";
+function renderUsage() {
+  const box = $("usage");
+  const u = state.usage;
+  const gone = state.disconnected;
+  box.hidden = !u && !gone;
+  if (box.hidden) return;
+  const info = gone ? { label: "Drive disconnected", icon: "unplugged" } : LEVELS[u.level];
+  const pct = gone ? 0 : Math.max(0, Math.min(100, Math.floor(u.percent)));
+  box.dataset.level = gone ? "gone" : u.level;
+  $("usage-state").replaceChildren(icon(info.icon), el("span", null, info.label));
+  $("usage-text").textContent = gone
+    ? "Reconnect it, then choose it from Location to scan again."
+    : `${formatSize(u.used)} used of ${formatSize(u.total)} · ${formatSize(u.free)} free · ${pct}%`;
+  $("usage-fill").style.width = `${pct}%`;
+  const bar = $("usage-bar");
+  bar.setAttribute("aria-valuenow", String(pct));
+  bar.setAttribute("aria-valuetext", gone ? info.label : `${pct}% used: ${info.label}`);
+}
+
+function progressText() {
+  const p = state.progress;
+  return p ? `${count(p.files, "file", "files")} · ${formatSize(p.size)} so far` : "Starting...";
+}
+
+function renderListMeta() {
+  const f = state.folder;
+  const parts = [];
+  if (f) parts.push(formatSize(f.node.size), count(f.node.child_count, "item", "items"));
+  if (state.scanning) parts.push(`Scanning: ${progressText()}`);
+  $("list-meta").textContent = parts.join(" · ");
+}
+
+function childByName(name) {
+  return state.folder && name !== null ? state.folder.children.find((c) => c.name === name) : null;
+}
+
+function makeRow(c) {
+  const b = el("button", "row");
+  b.type = "button";
+  b.tabIndex = -1;
+  b.dataset.name = c.name;
+  b.setAttribute("aria-pressed", String(c.name === state.selected));
+  const kind = c.is_dir ? "folder" : "file";
+  const flag = c.problem ? PROBLEM_TAGS[c.problem] : "";
+  b.setAttribute(
+    "aria-label",
+    `${c.name}, ${kind}, ${formatSize(c.size)}, ${formatPercent(c.share_parent)}${flag ? `, ${flag}` : ""}`,
+  );
+  const name = el("span", "row-name");
+  name.append(icon(kind), el("span", "row-text", c.name));
+  if (flag) name.append(el("span", "row-flag", flag));
+  const bar = el("span", "row-bar");
+  const fill = el("span", "row-fill");
+  fill.style.width = `${Math.min(100, c.share_parent * 100)}%`;
+  bar.append(fill);
+  b.append(name, bar, el("span", "row-size", formatSize(c.size)), el("span", "row-pct", formatPercent(c.share_parent)));
+  b.addEventListener("click", () => select(c.name));
+  if (c.is_dir) b.addEventListener("dblclick", () => openFolder(c.segments, null, true));
+  const li = el("li");
+  li.append(b);
+  return li;
+}
+
+function makeRestRow(rest, parentSize) {
+  const share = parentSize > 0 ? rest.size / parentSize : 0;
+  const d = el("div", "row row-rest");
+  const name = el("span", "row-name");
+  name.append(icon("more"), el("span", "row-text", `Other (${count(rest.count, "item", "items")})`));
+  const bar = el("span", "row-bar");
+  const fill = el("span", "row-fill");
+  fill.style.width = `${Math.min(100, share * 100)}%`;
+  bar.append(fill);
+  d.append(name, bar, el("span", "row-size", formatSize(rest.size)), el("span", "row-pct", formatPercent(share)));
+  const li = el("li");
+  li.append(d);
+  return li;
+}
+
+function rowButtons() {
+  return [...$("rows").querySelectorAll("button.row")];
+}
+
+// Roving tabindex: one row is in the tab order (the selected one, else the first).
+function tabbableRow() {
+  const btns = rowButtons();
+  const target = btns.find((b) => b.dataset.name === state.selected) || btns[0];
+  for (const b of btns) b.tabIndex = b === target ? 0 : -1;
+  return target;
+}
+
+function renderRows(focus) {
+  const f = state.folder;
+  const rows = $("rows");
+  const hadFocus = rows.contains(document.activeElement);
+  const items = f ? f.children.map(makeRow) : [];
+  if (f && f.rest) items.push(makeRestRow(f.rest, f.node.size));
+  rows.replaceChildren(...items);
+  rows.hidden = items.length === 0;
+  const row = tabbableRow();
+  if (row && (focus || hadFocus)) row.focus();
+}
+
+function noticeFor() {
+  const f = state.folder;
+  if (!f) return null;
+  if (state.disconnected) {
+    return { kind: "gone", icon: "unplugged", text: "Drive disconnected. These are the last results and may be incomplete." };
   }
-  $("status-title").textContent = title;
-  $("status-detail").textContent = detail;
+  if (state.error) return { kind: "error", icon: "error", text: state.error };
+  if (f.node.problem && f.children.length) {
+    return { icon: "lock", text: "Some items in this folder couldn't be read, so its size may be too small." };
+  }
+  const d = state.lastScan;
+  if (state.scanning || !d) return null;
+  if (d.volume_lost) return { icon: "unplugged", text: "The drive was removed during the scan. Rescan for full totals." };
+  if (d.cancelled) return { icon: "scan", text: "Scan stopped early. Sizes are incomplete; press Rescan for full totals." };
+  const denied = d.warnings.permission || 0;
+  if (denied) {
+    return { icon: "lock", text: `${count(denied, "item", "items")} couldn't be read (no permission) and aren't counted.` };
+  }
+  return null;
+}
+
+function renderNotice() {
+  const box = $("notice");
+  const n = noticeFor();
+  box.hidden = !n;
+  if (!n) return;
+  box.dataset.kind = n.kind || "";
+  box.replaceChildren(icon(n.icon), el("span", null, n.text));
+}
+
+function listState() {
+  const f = state.folder;
+  if (!api()) return { icon: "folder", title: "Open this page from the Disk Usage app." };
+  if (!f) {
+    if (state.disconnected) {
+      return { kind: "gone", icon: "unplugged", title: "Drive disconnected", detail: "Reconnect it, then choose it from Location." };
+    }
+    if (state.error) {
+      return { kind: "error", icon: "error", title: "Couldn't scan this location", detail: state.error, retry: true };
+    }
+    if (state.scanning) return { icon: "scan", title: "Scanning...", detail: progressText() };
+    return { icon: "folder", title: "Choose a location to scan." };
+  }
+  if (f.children.length) return null;
+  const problem = f.node.problem;
+  if (problem === "denied") {
+    return {
+      icon: "lock",
+      title: "No permission to open this folder",
+      detail: "Its contents can't be read, so they aren't counted in the totals.",
+    };
+  }
+  if (problem === "unreadable") {
+    return {
+      kind: "error",
+      icon: "error",
+      title: "This folder couldn't be read",
+      detail: "It may have been removed, or the drive may have a problem.",
+      retry: true,
+    };
+  }
+  if (problem === "other_drive") {
+    return {
+      icon: "drive",
+      title: "This folder is another drive",
+      detail: "Drives are scanned one at a time. Choose it from Location to scan it.",
+    };
+  }
+  if (f.partial) return { icon: "scan", title: "Scanning this folder...", detail: progressText() };
+  return { icon: "empty", title: "This folder is empty" };
+}
+
+function renderListState() {
+  const box = $("list-state");
+  const s = listState();
+  box.hidden = !s;
+  if (!s) return;
+  box.dataset.kind = s.kind || "";
+  const parts = [icon(s.icon), el("p", "state-title", s.title)];
+  if (s.detail) parts.push(el("p", "state-detail", s.detail));
+  if (s.retry && state.location && !state.scanning && !state.disconnected) {
+    const b = el("button", "action", "Try again");
+    b.type = "button";
+    b.addEventListener("click", () => startScan(state.location));
+    parts.push(b);
+  }
+  box.replaceChildren(...parts);
+}
+
+function sideHead(kind, kicker, title) {
+  const head = el("div", "side-head");
+  const text = el("div");
+  text.append(el("span", "side-kicker", kicker), el("h2", null, title));
+  head.append(icon(kind), text);
+  return head;
+}
+
+function fact(dl, term, value) {
+  dl.append(el("dt", null, term), el("dd", null, value));
+}
+
+// Right panel: the selected row, or the open folder when nothing is selected.
+async function renderSide() {
+  const side = $("side");
+  const f = state.folder;
+  const seq = ++state.sideSeq;
+  if (!f) {
+    side.hidden = true;
+    side.replaceChildren();
+    return;
+  }
+  const item = childByName(state.selected) || f.node;
+  const wantKids = item.is_dir && !item.problem;
+  const [details, kids] = await Promise.all([
+    call("get_details", item.segments),
+    wantKids ? call("get_children", item.segments, "size", 10) : null,
+  ]);
+  if (seq !== state.sideSeq) return;
+  const body = el("div", "side-body");
+  if (details.ok) body.append(el("p", "side-path", details.path));
+  if (item.is_dir) {
+    const meta = [formatSize(item.size), count(item.child_count, "item", "items")];
+    if (item.segments.length) meta.push(`${formatPercent(item.share_parent)} of ${f.node.name}`);
+    body.append(el("p", "side-meta", meta.join(" · ")));
+    if (item.problem) {
+      const note = el("p", "side-note");
+      note.append(icon(item.problem === "other_drive" ? "drive" : "lock"), el("span", null, PROBLEM_TAGS[item.problem]));
+      body.append(note);
+    }
+    if (kids && kids.ok) {
+      body.append(el("h3", null, "Largest inside"));
+      const ul = el("ul", "mini");
+      for (const k of kids.children) {
+        const li = el("li");
+        li.append(el("span", "n", k.name), el("span", "s", formatSize(k.size)));
+        ul.append(li);
+      }
+      if (kids.rest) ul.append(el("li", "more", `${count(kids.rest.count, "more item", "more items")}`));
+      if (!kids.children.length) ul.append(el("li", "more", kids.partial ? "Scanning..." : "Empty folder"));
+      body.append(ul);
+    }
+  } else {
+    const dl = el("dl", "facts");
+    const ext = details.ok && details.extension ? `${details.extension.toUpperCase()} file` : "File";
+    fact(dl, "Type", ext);
+    fact(dl, "Size", formatSize(item.size));
+    fact(dl, "Of this folder", formatPercent(item.share_parent));
+    if (details.ok) fact(dl, "Of the scan", formatPercent(details.share_root));
+    fact(dl, "Modified", formatDate(item.mtime));
+    body.append(dl);
+  }
+  const kicker = item === f.node ? "Open folder" : item.is_dir ? "Folder" : "File";
+  side.replaceChildren(sideHead(item.is_dir ? "folder" : "file", kicker, item.name), body);
+  side.hidden = false;
+}
+
+function renderList(focus = false) {
+  renderListMeta();
+  renderNotice();
+  renderRows(focus);
+  renderListState();
 }
 
 function render() {
   renderTop();
   renderBreadcrumb();
-  renderStatus();
+  renderUsage();
+  renderList();
+  renderSide();
 }
 
 // ---- actions --------------------------------------------------------------
@@ -159,17 +458,39 @@ async function loadVolumes() {
   state.home = res.home;
 }
 
+function locationPresent() {
+  if (!state.location) return false;
+  if (state.home && state.location === state.home.id) return true;
+  return state.volumes.some((v) => v.id === state.location);
+}
+
 function defaultLocation() {
   if (state.home) return state.home.id;
   const sys = state.volumes.find((v) => v.is_system);
   return (sys || state.volumes[0] || {}).id ?? null;
 }
 
+async function loadUsage() {
+  if (!state.location) return;
+  const res = await call("get_usage", state.location);
+  if (res.ok) state.usage = res;
+  else if (res.error.code !== "unknown_location") state.usage = null; // gone: keep the last one
+  renderUsage();
+}
+
+// Rescanning the same location keeps the open folder; a new location starts at its root.
 async function startScan(location) {
   if (!location) return;
+  if (location !== state.location) {
+    state.folder = null;
+    state.path = [];
+    state.selected = null;
+    state.usage = null;
+  }
   state.location = location;
   state.error = null;
-  state.folder = null;
+  state.disconnected = false;
+  state.lastScan = null;
   state.progress = null;
   state.scanning = true;
   render();
@@ -181,21 +502,77 @@ async function startScan(location) {
     state.scanId = Math.max(state.scanId, res.scan_id);
   }
   render();
+  loadUsage();
 }
 
-async function openFolder(segments) {
+// Show a folder. selectName picks a row; focus moves keyboard focus into the list.
+async function openFolder(segments, selectName = null, focus = false) {
+  const seq = ++state.listSeq;
+  state.path = segments; // a scan refresh fired before the reply must load this folder too
   const res = await call("get_children", segments, "size", 100);
+  if (seq !== state.listSeq) return;
   if (!res.ok) {
+    const code = res.error.code;
+    if (state.scanning && (code === "no_scan" || code === "not_found")) return; // not listed yet
+    if (code === "not_found" && segments.length) return openFolder([], null, focus); // gone after rescan
     state.error = res.error.message;
-  } else {
-    state.folder = res;
-    state.error = null;
+    render();
+    return;
   }
-  render();
+  const key = (segs) => segs.join("\u0000");
+  const moved = !state.folder || key(res.node.segments) !== key(state.folder.node.segments);
+  state.folder = res;
+  state.path = res.node.segments;
+  state.error = null;
+  if (moved) state.selected = selectName;
+  renderTop();
+  renderBreadcrumb();
+  renderList(focus);
+  renderSide();
+}
+
+function select(name) {
+  if (name === state.selected) return;
+  state.selected = name;
+  for (const b of rowButtons()) b.setAttribute("aria-pressed", String(b.dataset.name === name));
+  tabbableRow();
+  renderSide();
 }
 
 function goUp() {
-  if (state.folder && !state.folder.is_root) openFolder(state.folder.node.segments.slice(0, -1));
+  if (!state.folder || state.folder.is_root) return;
+  const segs = state.folder.node.segments;
+  openFolder(segs.slice(0, -1), segs[segs.length - 1], true);
+}
+
+// Arrow keys move the selection, Enter opens a folder, Backspace goes up.
+function onRowsKey(e) {
+  const btns = rowButtons();
+  if (!btns.length || e.altKey || e.ctrlKey || e.metaKey) return;
+  const i = btns.indexOf(document.activeElement);
+  const page = 8;
+  const moves = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: btns.length - 1, PageDown: i + page, PageUp: i - page };
+  if (e.key in moves) {
+    e.preventDefault();
+    const target = btns[Math.max(0, Math.min(btns.length - 1, moves[e.key]))];
+    select(target.dataset.name);
+    target.focus();
+  } else if (e.key === "Enter" && i >= 0) {
+    e.preventDefault();
+    const c = childByName(btns[i].dataset.name);
+    if (c && c.is_dir) openFolder(c.segments, null, true);
+    else if (c) select(c.name);
+  }
+}
+
+// Refresh the open folder while scanning, at most about once a second.
+let refreshTimer = null;
+function scheduleRefresh() {
+  if (refreshTimer || document.hidden) return;
+  refreshTimer = setTimeout(() => {
+    refreshTimer = null;
+    if (state.scanning) openFolder(state.path);
+  }, 800);
 }
 
 function rescanOrStop() {
@@ -216,24 +593,31 @@ const handlers = {
   scan_progress(p) {
     if (!isCurrent(p)) return;
     state.progress = p;
-    renderStatus();
+    renderListMeta();
+    if (!state.folder) renderListState();
+    scheduleRefresh();
   },
   scan_done(p) {
     if (!isCurrent(p)) return;
     state.scanning = false;
+    state.lastScan = p;
     if (!p.ok) {
       state.error = p.error.message;
+      state.folder = null;
       render();
       return;
     }
-    openFolder([]).then(() => {
-      if (p.volume_lost) state.error = "The drive was disconnected during the scan.";
-      render();
-    });
+    if (p.volume_lost) state.disconnected = !locationPresent();
+    openFolder(state.path, state.selected);
+    loadUsage();
   },
   volumes_changed(p) {
     state.volumes = p.volumes;
+    const present = locationPresent();
+    if (!present) state.disconnected = Boolean(state.location);
+    else if (state.disconnected) state.disconnected = false; // plugged back in
     render();
+    if (present) loadUsage();
   },
   error(p) {
     if (p.scan_id === state.scanId) state.scanning = false;
@@ -253,6 +637,7 @@ function bindControls() {
   $("location").addEventListener("change", (e) => startScan(e.target.value));
   $("up").addEventListener("click", goUp);
   $("rescan").addEventListener("click", rescanOrStop);
+  $("rows").addEventListener("keydown", onRowsKey);
   $("theme").addEventListener("change", async (e) => {
     state.theme = e.target.value;
     applyTheme();
@@ -263,7 +648,8 @@ function bindControls() {
     if (api()) call("set_visible", !document.hidden);
   });
   document.addEventListener("keydown", (e) => {
-    if (e.altKey && e.key === "ArrowUp") {
+    const inSelect = e.target instanceof HTMLSelectElement;
+    if ((e.altKey && e.key === "ArrowUp") || (e.key === "Backspace" && !inSelect)) {
       e.preventDefault();
       goUp();
     } else if (e.key === "F5" || (e.ctrlKey && e.key === "r")) {

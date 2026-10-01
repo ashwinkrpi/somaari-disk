@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from disk_usage_analyzer.api.bridge import Api
+from disk_usage_analyzer.api.bridge import Api, usage_level
 from disk_usage_analyzer.app import js_event_call
 from disk_usage_analyzer.core.models import Volume
 from disk_usage_analyzer.core.tree import find_node, remove_node, sorted_children
@@ -229,9 +229,10 @@ def test_emitter_failure_does_not_break_scan():
     api = Api(plat, bad_emit)
     api.scan("dev-a")
     end = time.monotonic() + 5
-    while api.get_children([]).get("ok") is not True and time.monotonic() < end:
+    # get_children is ok mid-scan too (partial tree), so wait for the finished one
+    while api.get_children([]).get("partial") is not False and time.monotonic() < end:
         time.sleep(0.01)
-    assert api.get_children([])["ok"]
+    assert api.get_children([])["node"]["size"] == 10161
 
 
 # ---- tree queries ----------------------------------------------------------------
@@ -325,6 +326,117 @@ def test_get_usage():
     assert u["volume_id"] == "dev-a" and u["percent"] == pytest.approx(40.0)
     assert make()[0].get_usage()["error"]["code"] == "no_scan"
     assert api.get_usage("dev-a")["total"] == 100 * GB
+    assert u["level"] == "ok"
+
+
+@pytest.mark.parametrize(
+    ("used", "free", "level"),
+    [
+        (0, 100, "ok"),
+        (49, 51, "ok"),
+        (50, 50, "filling"),
+        (74, 26, "filling"),
+        (75, 25, "low"),
+        (99, 1, "low"),
+        (100, 0, "full"),
+        (95, 0, "full"),  # reserved blocks: no free space before 100% used
+    ],
+)
+def test_usage_level_thresholds(used, free, level):
+    assert usage_level(used * GB, 100 * GB, free * GB) == level
+
+
+def test_usage_level_edges():
+    assert usage_level(int(49.999 * GB), 100 * GB, 50 * GB) == "ok"
+    assert usage_level(int(74.999 * GB), 100 * GB, 25 * GB) == "filling"
+    assert usage_level(0, 0, 0) == "ok"  # unknown size: no warning
+
+
+def test_get_usage_level_per_volume():
+    api, _, _ = scanned(volumes=[vol(used=80 * GB, free=20 * GB)])
+    assert api.get_usage()["level"] == "low"
+
+
+class Gated(FakePlatform):
+    """Listing any folder named in `gated` blocks until `gate` is set."""
+
+    def __init__(self, *a, gated=(), **kw):
+        super().__init__(*a, **kw)
+        self.gate = threading.Event()
+        self.gated = set(gated)
+
+    def scandir(self, path):
+        if path.name in self.gated:
+            self.gate.wait(5)
+        return super().scandir(path)
+
+
+def wait_for(fn, timeout=5):
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        value = fn()
+        if value:
+            return value
+        time.sleep(0.01)
+    raise AssertionError("timed out")
+
+
+def test_get_children_reads_partial_tree_while_scanning():
+    plat = Gated(sample_tree(), volumes=[vol()], gated={"Docs"})
+    rec = Recorder()
+    api = Api(plat, rec, progress_interval=0.01)
+    api.scan("dev-a")
+
+    def videos_listed():
+        res = api.get_children([])
+        kids = {c["name"]: c for c in res.get("children", [])}
+        return res if kids.get("Videos", {}).get("size") == 8000 else None
+
+    res = wait_for(videos_listed)
+    assert_json(res)
+    assert res["partial"] is True
+    docs = next(c for c in res["children"] if c["name"] == "Docs")
+    assert docs["size"] == 0  # not listed yet
+    assert api.get_details(["Videos", "a.mp4"])["size"] == 5000
+    # actions wait for a finished scan: the tree is still being built
+    assert api.move_to_trash(["zeta.bin"], confirmed=True)["error"]["code"] == "no_scan"
+    assert api.open_in_file_manager(["Videos"])["error"]["code"] == "no_scan"
+    plat.gate.set()
+    assert rec.done.wait(5)
+    res = api.get_children([])
+    assert res["partial"] is False and res["node"]["size"] == 10161
+
+
+def test_problem_flags_for_unreadable_folders():
+    tree = FakeDir(
+        {
+            "Locked": FakeDir({"x": FakeFile(5)}, list_error=PermissionError),
+            "Broken": FakeDir(list_error=OSError),
+            "Mount": FakeDir({"y": FakeFile(9)}, dev=99),
+            "ok.txt": FakeFile(3),
+        }
+    )
+    api, _, rec = scanned(tree=tree)
+    res = api.get_children([])
+    flags = {c["name"]: c["problem"] for c in res["children"]}
+    assert flags == {
+        "Locked": "denied",
+        "Broken": "unreadable",
+        "Mount": "other_drive",
+        "ok.txt": None,
+    }
+    assert res["node"]["problem"] is None
+    locked = api.get_children(["Locked"])
+    assert locked["node"]["problem"] == "denied" and locked["children"] == []
+    assert api.get_details(["Locked"])["problem"] == "denied"
+    assert rec.of("scan_done")[0]["warnings"]["permission"] == 1
+
+
+def test_root_without_permission_is_flagged():
+    api, _, rec = scanned(tree=FakeDir({"x": FakeFile(1)}, list_error=PermissionError))
+    assert rec.of("scan_done")[0]["ok"]
+    res = api.get_children([])
+    assert res["node"]["problem"] == "denied" and res["children"] == []
 
 
 def test_get_usage_picks_deepest_mount():

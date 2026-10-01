@@ -31,11 +31,19 @@ Format: `- [date] decision - reason`
 - [2026-10-01] Name sort = casefold then code point (core is locale-free); the UI may re-sort with Intl.Collator if needed.
 - [2026-10-01] Guarded api methods carry `__signature__` - pywebview builds JS stubs from getfullargspec, which ignores __wrapped__.
 - [2026-10-01] Fonts: @font-face tries locally installed IBM Plex first, then ui/fonts/*.woff2, then system-ui - font files not yet bundled (download needs approval).
+- [2026-10-01] Scanner adds each listed folder's sizes to all ancestors (once per folder, not per file) instead of a final bottom-up pass - the live tree stays consistent, so the list can fill in during a scan at O(dirs x depth) cost.
+- [2026-10-01] Live reads (get_children, get_details) use the running scan's tree; open_in_file_manager/move_to_trash still need a finished scan - trash would race the scanner thread mutating the tree.
+- [2026-10-01] Usage level computed in Python (`usage_level`), labels/icons in the UI; "Disk full" = 100% used OR no free space - ext4 reserved blocks leave users at 0 free while used% is ~95%; total 0 = no warning.
+- [2026-10-01] Unreadable folders flagged per item from scan warnings (`problem`: denied/unreadable/other_drive) - lets the list say "No access" instead of showing a silent 0 B.
+- [2026-10-01] Rescan keeps the open folder (falls back to root if it is gone); changing location starts at root. Backspace = Up (except in selects), Enter opens a folder, arrows/Home/End/PgUp/PgDn move the selection.
+- [2026-10-01] File selection shows a light summary (type, size, shares, modified) in the right panel; full "File details" + actions are Stage 5.
 
 ## Deferred
 - reveal with the file selected (org.freedesktop.FileManager1.ShowItems over D-Bus) - Stage 5 if wanted.
 - Volume id across replug (filesystem UUID) and lsblk mount-point matching for LVM/LUKS mappers - Stage 6 hardware testing.
 - Windows hard-link ids and true size on disk (scandir stat lacks st_ino/st_nlink/st_blocks) - Stage 7.
 - Memory benchmark of the scan tree on a large real volume - Stage 6.
-- Children list, usage bar, drill-down, progressive fill while scanning, ctime/Created in details - Stage 4/5.
+- ctime/Created, owner, permissions, Show in folder / Move to Trash in the file view - Stage 5.
+- Sort control and size-on-disk toggle for the list (api supports both) - not in Stage 4 boards; add if wanted.
+- Cache the problems map per scan instead of rebuilding from warnings on each get_children - only if many-warning scans prove slow (Stage 6).
 - Window min size 1024x600 set; visual check vs boards at 1280x800 / 1024x600 needs a human (Stage 4 screens).

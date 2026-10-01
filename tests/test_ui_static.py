@@ -61,6 +61,52 @@ def test_js_handles_every_event():
         assert re.search(rf"\b{event}\(p\)", JS), event
 
 
+def test_usage_bar_markup_and_states():
+    assert 'role="progressbar"' in HTML and 'aria-valuenow="0"' in HTML
+    assert "tick-50" in HTML and "tick-75" in HTML
+    assert ".tick-50 { left: 50%; }" in CSS and ".tick-75 { left: 75%; }" in CSS
+    # every api level has its own label and icon in JS and its colors in CSS
+    for level, label in (
+        ("ok", "Plenty of space"),
+        ("filling", "Filling up"),
+        ("low", "Running low"),
+        ("full", "Disk full"),
+    ):
+        assert re.search(rf'{level}: \{{ label: "{label}", icon: "{level}" \}}', JS), level
+        assert re.search(rf"^\s+{level}: \"M", JS, re.M), f"icon {level}"
+    for level in ("filling", "low", "full", "gone"):
+        assert f'.usage[data-level="{level}"]' in CSS
+    dark = CSS.split(':root[data-theme="dark"]', 1)[1]
+    for var in ("--ok-fill", "--warn-fill", "--low-fill", "--full-fill"):
+        assert var in dark
+
+
+def test_rows_are_toggle_buttons_with_keyboard_nav():
+    assert 'el("button", "row")' in JS
+    assert '"aria-pressed"' in JS
+    assert 'addEventListener("dblclick"' in JS
+    for key in ("ArrowDown", "ArrowUp", "Home", "End", "Enter", "Backspace"):
+        assert key in JS, key
+    assert 'id="rows"' in HTML and 'id="side"' in HTML
+
+
+def test_list_states_covered():
+    for text in (
+        "Scanning...",
+        "This folder is empty",
+        "Couldn't scan this location",
+        "No permission to open this folder",
+        "Drive disconnected",
+        "Other (",
+    ):
+        assert text in JS, text
+    # every api problem flag has a row tag
+    from disk_usage_analyzer.api.bridge import PROBLEMS
+
+    for flag in set(PROBLEMS.values()):
+        assert f"{flag}:" in JS.split("PROBLEM_TAGS = ", 1)[1].split("\n", 1)[0], flag
+
+
 def test_ui_has_no_os_paths():
     assert "/home/" not in JS and "C:\\" not in JS
 

@@ -23,3 +23,11 @@
 - Limitations: body is a status card only (no list yet), so Up/breadcrumb only work once Stage 4 drills in; tree not readable during a scan; app auto-scans Home on start; theme select not in the boards.
 - Deferred: children list, usage bar, drill-down, progressive fill (Stage 4); file view, Created date, trash confirm dialog (Stage 5).
 - CHANGELOG updated: yes.
+
+## Stage 4: Main screens (2026-10-01)
+- Files: ui/{index.html, app.css, app.js} (usage strip, list panel, side panel, states), core/scanner.py (live tree, per-folder size push-up), api/bridge.py (partial reads, `problem` flags, `usage_level`), tests/test_{api,scanner_fake,ui_static}.py, ARCHITECTURE, DECISIONS, CHANGELOG.
+- Tests: 126 passed, 0 skipped (Pi). Lint: ruff check + format clean. test_emitter_failure_does_not_break_scan now waits for `partial: false` (get_children is ok mid-scan, so its old wait no longer proved the scan finished).
+- Needs me (new states to look at): `DISPLAY=:0 .venv/bin/python -m disk_usage_analyzer --demo` - usage bar colors/icons (demo drives show "Filling up" 55% and "Running low" 81%; ok/full only covered by tests), list filling in while scanning, click/double-click/keyboard nav, empty folder, Stop -> "Scan stopped early" notice; real run on a folder with an unreadable subfolder ("No access" tag + lock state); unplug a USB drive mid-scan and after scan ("Drive disconnected" strip + notice, replug clears it); compare to boards at 1280x800 and 1024x600, light + dark. JS was not executed here (node/chromium runs not approved), only reviewed + static-tested.
+- Limitations: file selection shows a summary only; no sort/on-disk toggle in UI; side panel re-fetches on every render; dark usage-state colors not contrast-checked; fonts still not bundled.
+- Deferred: full file view + trash/reveal buttons, Created date (Stage 5); problems-map caching (Stage 6); sort control (unscheduled).
+- CHANGELOG updated: yes.

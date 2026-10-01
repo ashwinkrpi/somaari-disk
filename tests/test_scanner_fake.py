@@ -4,7 +4,7 @@ import pytest
 
 from disk_usage_analyzer.core.models import Node
 from disk_usage_analyzer.core.scanner import Scanner
-from disk_usage_analyzer.core.tree import largest_files, path_segments, top_children
+from disk_usage_analyzer.core.tree import iter_nodes, largest_files, path_segments, top_children
 from disk_usage_analyzer.platform.fake import BLOCK, FakeDir, FakeFile, FakeLink, FakePlatform
 
 ROOT = Path("fake-root")
@@ -173,3 +173,28 @@ def test_top_children_rollup():
 def test_largest_files():
     r = scan(sample())
     assert [f.name for f in largest_files(r.root, 2)] == ["big.bin", "b.txt"]
+
+
+def test_partial_tree_sizes_consistent_mid_scan():
+    """Sizes are pushed up as each folder is listed, so a live read never sees a half-sum."""
+    tree = FakeDir(
+        {
+            f"d{i}": FakeDir({"f": FakeFile(10 * i), "sub": FakeDir({"g": FakeFile(7)})})
+            for i in range(20)
+        }
+    )
+    totals = []
+
+    def check(_progress):
+        result = scanner.result
+        for node in iter_nodes(result.root):
+            if node.is_dir:
+                assert node.size == sum(c.size for c in node.children)
+                assert node.size_on_disk == BLOCK + sum(c.size_on_disk for c in node.children)
+        totals.append(result.root.size)
+
+    scanner = Scanner(FakePlatform(tree, ROOT), workers=1, progress=check, progress_interval=0)
+    result = scanner.scan(ROOT)
+    assert scanner.result is result
+    assert len(totals) > 2 and totals == sorted(totals)  # totals only ever grow
+    assert result.root.size == sum(10 * i + 7 for i in range(20))
