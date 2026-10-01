@@ -1,0 +1,38 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Claude Code local state (keep shared .claude/settings.json)
+.claude/settings.local.json
+CLAUDE.local.md
+
+# App runtime data (scan caches, logs)
+*.log
+*.cache
+scan-cache/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+
+# Real-data screenshots: only commit ones made in demo mode
+design/screenshots-private/
