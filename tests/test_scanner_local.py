@@ -71,7 +71,6 @@ def test_permission_denied(tmp_path):
     assert [(w.kind, w.path) for w in r.warnings] == [("permission", ("locked",))]
 
 
-@pytest.mark.skipif(IS_WINDOWS, reason="file ids need full stat on Windows (Stage 7)")
 def test_hard_links_once(tmp_path):
     (tmp_path / "a").write_bytes(b"h" * 2000)
     os.link(tmp_path / "a", tmp_path / "b")

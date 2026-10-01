@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from ..core.models import Node, ScanProgress, ScanResult, Volume
-from ..core.scanner import Scanner
+from ..core.scanner import Scanner, device_gone
 from ..core.tree import SORT_KEYS, find_node, path_segments, remove_node, sorted_children
 from ..core.volumes import VolumeWatcher
 from ..platform.base import Platform, TrashUnavailableError
@@ -99,7 +99,7 @@ TRASH_MESSAGES = {
 def _os_error(e: OSError) -> dict:
     if e.errno == errno.EROFS:
         return _fail("read_only", READ_ONLY_MSG)
-    if e.errno in (errno.ENODEV, errno.ENXIO):
+    if device_gone(e):
         return _fail("drive_unavailable", "The drive can't be reached. It may have been unplugged.")
     if isinstance(e, TrashUnavailableError):
         return _fail("no_trash", TRASH_MESSAGES["no_trash"])

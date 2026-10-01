@@ -55,3 +55,29 @@ Below is the manual checklist for real hardware. Run from the Pi desktop, or ove
 - Dark and light theme, at 1280x800 and 1024x600.
 - CLI: `.venv/bin/python -m disk_usage_analyzer volumes` lists the internal disk, USB and SD
   with the right file system, removable and read-only flags.
+
+## Windows (before a release)
+
+Run from a normal (not admin) PowerShell: `.venv\Scripts\python -m disk_usage_analyzer`.
+Setup: `py -3.11 -m venv .venv` then `.venv\Scripts\pip install -e ".[dev]"`.
+
+1. Start: the window opens (WebView2). On a machine without the runtime, a dialog explains
+   what to install and the app exits.
+2. `.venv\Scripts\python -m disk_usage_analyzer volumes`: C: is system; a USB stick, USB HDD
+   (NTFS, exFAT) and SD card are removable with the right file system; a mapped network drive
+   shows as network; an empty card reader or DVD drive is not listed. No error dialogs.
+3. Replug a USB drive into another port: its saved scan still opens (id survives replug).
+4. Scan C:. No crash on access-denied folders (System Volume Information, other users).
+   Junctions (e.g. "Documents and Settings") and OneDrive placeholders are not followed or
+   downloaded; online-only files show 0 size on disk.
+5. Hard links: C:\Windows sizes look sane (WinSxS counted once). Compare total with
+   Explorer's Properties for one folder: within a few percent.
+6. Long paths: a folder nested past 260 characters scans and its files show details.
+7. Pull a USB drive mid-scan: "drive disconnected" state, no crash.
+8. File details: owner is a user or group name, Permissions shows attributes, read-only
+   file shows "(read-only)". Show in folder opens Explorer with the file selected.
+9. Move to Trash a scratch file: it lands in the Recycle Bin and restores from there.
+10. Hidden and system files are marked hidden. Light and dark theme follow Windows settings.
+11. Minimize: Task Manager shows about 0% CPU. Close: the process exits.
+12. Log in `%LOCALAPPDATA%` (platformdirs config dir) has no user name or home path.
+

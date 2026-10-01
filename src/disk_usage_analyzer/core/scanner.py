@@ -26,6 +26,14 @@ _DEVICE_GONE = frozenset(
     for n in ("ENODEV", "ENXIO", "ENOTCONN", "ESTALE", "ESHUTDOWN")
     if hasattr(errno, n)
 )
+# Windows error codes (OSError.winerror) with the same meaning: not ready, device or
+# network name gone, device not connected, volume changed under us, no such device.
+_WIN_DEVICE_GONE = frozenset({21, 55, 64, 433, 1006, 1167})
+
+
+def device_gone(err: OSError) -> bool:
+    """True if err means the whole device or share is gone (unplugged, unmounted)."""
+    return err.errno in _DEVICE_GONE or getattr(err, "winerror", None) in _WIN_DEVICE_GONE
 
 
 def _warning(err: OSError, segments: tuple[str, ...]) -> ScanWarning:
@@ -191,7 +199,7 @@ class Scanner:
 
     def _lost(self, root: Path, root_dev: int | None, err: OSError) -> bool:
         """True if the scanned volume is gone (unplugged, unmounted), not just one folder."""
-        if err.errno in _DEVICE_GONE:
+        if device_gone(err):
             return True
         try:
             info = self._platform.stat(root)

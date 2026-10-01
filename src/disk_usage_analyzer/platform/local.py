@@ -12,7 +12,7 @@ from .base import EntryInfo, Kind, Listing, Platform, TrashUnavailableError
 _REPARSE_POINT = getattr(st, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 
 
-def _info(name: str, s: os.stat_result) -> EntryInfo:
+def _info(name: str, s: os.stat_result, on_disk: int | None = None) -> EntryInfo:
     mode = s.st_mode
     attrs = getattr(s, "st_file_attributes", 0)
     if st.S_ISLNK(mode) or (st.S_ISDIR(mode) and attrs & _REPARSE_POINT):
@@ -22,8 +22,9 @@ def _info(name: str, s: os.stat_result) -> EntryInfo:
     else:
         kind = Kind.FILE if st.S_ISREG(mode) else Kind.OTHER
         size = s.st_size
-    blocks = getattr(s, "st_blocks", None)
-    on_disk = blocks * 512 if blocks is not None else size  # Windows: refined in Stage 7
+    if on_disk is None:
+        blocks = getattr(s, "st_blocks", None)  # POSIX; Windows passes on_disk instead
+        on_disk = blocks * 512 if blocks is not None else size
     file_id = s.st_ino if kind is not Kind.DIR and s.st_nlink > 1 and s.st_ino else None
     return EntryInfo(name, kind, size, on_disk, int(s.st_mtime), s.st_dev or None, file_id)
 

@@ -52,10 +52,14 @@ Format: `- [date] decision - reason`
 - [2026-10-01] Memory budget (bench, Pi 5): scan tree ~133 B/node when names/ints are shared, ~250-300 B/node on a real disk (Node 88 + name ~60 + 3 ints 84). 1M files ~ 250-300 MiB. Saved scan for 1M files: 14 MiB, save 6 s, load 5.5 s. Acceptable for the ~2 GiB budget; no array-packed tree yet.
 - [2026-10-01] Non-UTF-8 names stay as surrogate-escaped str end to end (they reopen the real file). JSON to the UI is ASCII-escaped; display_name() swaps bad bytes for U+FFFD where text must be printed (CLI). find_node accepts the U+FFFD form when exactly one child matches, in case the webview bridge normalizes lone surrogates.
 - [2026-10-01] Log: stdlib RotatingFileHandler (512 KiB x 4) in the platformdirs config dir per BUILD-PLAN; errors="backslashreplace" so odd names cannot break logging. Unexpected api exceptions are logged with traceback and returned as code "internal".
+- [2026-10-01] Windows OS calls via stdlib ctypes (kernel32/advapi32/user32), not pywin32 - no new dependency, no license or wheel concerns on ARM64 Windows; the calls are few and wrapped in platform/windows.py with argtypes set.
+- [2026-10-01] Windows size on disk = size rounded up to the volume cluster size; GetCompressedFileSizeW only for compressed/sparse/offline/cloud-placeholder files - one extra syscall per file instead of two. Small files resident in the MFT are over-counted by one cluster.
+- [2026-10-01] Windows scandir re-stats each regular file (os.lstat) for file index, link count and volume serial - DirEntry.stat lacks them; needed to count hard links once (WinSxS). Costs one open per file on Windows only.
+- [2026-10-01] Windows volume id = volume GUID (stable per machine, survives replug), else volume serial - same "survives replug" goal as Linux fs UUIDs.
+- [2026-10-01] WebView2 runtime checked in the registry before pywebview loads; missing runtime = native dialog + exit 1 - pywebview's own error is a traceback.
 
 ## Deferred
 - lsblk mount-point matching for LVM/LUKS mappers - needs that hardware; UUID ids done in Stage 6.
-- Windows hard-link ids and true size on disk (scandir stat lacks st_ino/st_nlink/st_blocks) - Stage 7.
 - Memory check on a large real volume (bench covers a generated 1M tree) - manual, see TESTING.md.
 - Show in folder / Move to Trash for selected folders (api supports it; boards show the buttons for files only) - needs a design call.
 - Undo / restore from Trash inside the app - not planned; the OS Trash restores.
@@ -64,3 +68,8 @@ Format: `- [date] decision - reason`
 - Array-packed tree (sizes/mtimes in array.array) to cut ~85 B/node - only if real volumes exceed the memory budget.
 - Saved-scan staleness hint (e.g. drive free space changed since the scan) - not in plan.
 - Window min size 1024x600 set; visual check vs boards at 1280x800 / 1024x600 needs a human (Stage 4 screens).
+- Windows: volumes mounted in folders (no drive letter) are not listed - rare; needs FindFirstVolume/GetVolumePathNamesForVolumeName.
+- Windows: owner of a symlink/junction shows the target's owner (GetNamedSecurityInfoW follows links) - needs a handle opened with FILE_FLAG_OPEN_REPARSE_POINT.
+- Windows: MFT-resident small files counted as one cluster on disk - needs FSCTL queries; not worth it.
+- Windows installer, WebView2 bootstrapper chaining, code signing - Stage 8 release workflow.
+

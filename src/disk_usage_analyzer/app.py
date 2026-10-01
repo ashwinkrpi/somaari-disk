@@ -3,12 +3,22 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 from .api.bridge import Api
 
 UI_DIR = Path(__file__).parent / "ui"
 APP_NAME = "disk-usage-analyzer"
+WEBVIEW2_MISSING = (
+    "Disk Usage needs the Microsoft Edge WebView2 Runtime, which is not installed.\n\n"
+    "Install the Evergreen WebView2 Runtime from Microsoft, then start Disk Usage again."
+)
+
+
+def gui_backend(platform: str = sys.platform) -> str:
+    """pywebview backend: WebView2 (Edge Chromium) on Windows, GTK + WebKitGTK elsewhere."""
+    return "edgechromium" if platform == "win32" else "gtk"
 
 
 def make_api(demo: bool = False) -> Api:
@@ -54,6 +64,12 @@ def wire_window_events(events, api: Api) -> None:
 
 
 def run(demo: bool = False, debug: bool = False) -> int:
+    if sys.platform == "win32":
+        from .platform.windows import message_box, webview2_version
+
+        if not webview2_version():
+            message_box("Disk Usage", WEBVIEW2_MISSING)
+            return 1
     import webview  # lazy: heavy, GUI-only
 
     api = make_api(demo)
@@ -69,5 +85,5 @@ def run(demo: bool = False, debug: bool = False) -> int:
     assert window is not None
     api.set_emitter(lambda event, payload: window.evaluate_js(js_event_call(event, payload)))
     wire_window_events(window.events, api)
-    webview.start(gui="gtk", debug=debug)
+    webview.start(gui=gui_backend(), debug=debug)
     return 0
