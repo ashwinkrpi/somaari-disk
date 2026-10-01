@@ -9,7 +9,7 @@ from pathlib import Path
 from .api.bridge import Api
 
 UI_DIR = Path(__file__).parent / "ui"
-APP_NAME = "disk-usage-analyzer"
+APP_NAME = "somaari-disk"
 WEBVIEW2_MISSING = (
     "Disk Usage needs the Microsoft Edge WebView2 Runtime, which is not installed.\n\n"
     "Install the Evergreen WebView2 Runtime from Microsoft, then start Disk Usage again."

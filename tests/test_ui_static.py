@@ -4,11 +4,11 @@ import re
 import sys
 from pathlib import Path
 
-import disk_usage_analyzer
-from disk_usage_analyzer.__main__ import main
-from disk_usage_analyzer.api.bridge import Api
+import somaari_disk
+from somaari_disk.__main__ import main
+from somaari_disk.api.bridge import Api
 
-UI = Path(disk_usage_analyzer.__file__).parent / "ui"
+UI = Path(somaari_disk.__file__).parent / "ui"
 HTML = (UI / "index.html").read_text(encoding="utf-8")
 CSS = (UI / "app.css").read_text(encoding="utf-8")
 JS = (UI / "app.js").read_text(encoding="utf-8")
@@ -101,7 +101,7 @@ def test_list_states_covered():
     ):
         assert text in JS, text
     # every api problem flag has a row tag
-    from disk_usage_analyzer.api.bridge import PROBLEMS
+    from somaari_disk.api.bridge import PROBLEMS
 
     for flag in set(PROBLEMS.values()):
         assert f"{flag}:" in JS.split("PROBLEM_TAGS = ", 1)[1].split("\n", 1)[0], flag

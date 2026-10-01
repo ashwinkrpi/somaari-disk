@@ -10,11 +10,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from disk_usage_analyzer.api.bridge import _os_error
-from disk_usage_analyzer.core.scanner import Scanner, device_gone
-from disk_usage_analyzer.platform import windows as win
-from disk_usage_analyzer.platform.base import Kind
-from disk_usage_analyzer.platform.windows import (
+from somaari_disk.api.bridge import _os_error
+from somaari_disk.core.scanner import Scanner, device_gone
+from somaari_disk.platform import windows as win
+from somaari_disk.platform.base import Kind
+from somaari_disk.platform.windows import (
     DRIVE_CDROM,
     DRIVE_FIXED,
     DRIVE_REMOTE,
@@ -330,7 +330,7 @@ def test_webview2_version(monkeypatch):
 
 
 def test_gui_backend():
-    from disk_usage_analyzer.app import gui_backend
+    from somaari_disk.app import gui_backend
 
     assert gui_backend("win32") == "edgechromium"
     assert gui_backend("linux") == "gtk"

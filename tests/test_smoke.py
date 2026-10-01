@@ -1,14 +1,14 @@
 import ast
 from pathlib import Path
 
-import disk_usage_analyzer
+import somaari_disk
 
-PKG = Path(disk_usage_analyzer.__file__).parent
+PKG = Path(somaari_disk.__file__).parent
 FORBIDDEN = {"os", "subprocess", "ctypes", "winreg", "webview", "gi", "psutil", "send2trash"}
 
 
 def test_version():
-    assert disk_usage_analyzer.__version__
+    assert somaari_disk.__version__
 
 
 def test_layers_exist():
@@ -34,6 +34,6 @@ def test_core_has_no_os_or_gui_imports():
 def test_main_does_not_import_webview_eagerly():
     import sys
 
-    import disk_usage_analyzer.__main__  # noqa: F401
+    import somaari_disk.__main__  # noqa: F401
 
     assert "webview" not in sys.modules

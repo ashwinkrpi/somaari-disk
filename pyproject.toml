@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "disk-usage-analyzer"
+name = "somaari-disk"
 version = "0.0.1"
 description = "Desktop disk usage analyzer"
 license = "MIT"
@@ -19,10 +19,10 @@ dependencies = [
 dev = ["pytest>=8", "ruff>=0.6", "pre-commit>=3"]
 
 [project.scripts]
-disk-usage-analyzer = "disk_usage_analyzer.__main__:main"
+somaari-disk = "somaari_disk.__main__:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/disk_usage_analyzer"]
+packages = ["src/somaari_disk"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

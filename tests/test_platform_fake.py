@@ -9,13 +9,13 @@ from pathlib import Path
 
 import pytest
 
-from disk_usage_analyzer.cli import main as scan_main
-from disk_usage_analyzer.cli import volumes_main
-from disk_usage_analyzer.core.models import Volume
-from disk_usage_analyzer.core.scanner import Scanner
-from disk_usage_analyzer.core.volumes import VolumeWatcher
-from disk_usage_analyzer.platform import get_platform
-from disk_usage_analyzer.platform.fake import FakeDir, FakeFile, FakePlatform
+from somaari_disk.cli import main as scan_main
+from somaari_disk.cli import volumes_main
+from somaari_disk.core.models import Volume
+from somaari_disk.core.scanner import Scanner
+from somaari_disk.core.volumes import VolumeWatcher
+from somaari_disk.platform import get_platform
+from somaari_disk.platform.fake import FakeDir, FakeFile, FakePlatform
 
 ROOT = Path("fake-root")
 GB = 10**9

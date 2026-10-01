@@ -5,9 +5,9 @@ import sys
 
 import pytest
 
-from disk_usage_analyzer.__main__ import main
-from disk_usage_analyzer.core.scanner import Scanner
-from disk_usage_analyzer.platform import get_platform
+from somaari_disk.__main__ import main
+from somaari_disk.core.scanner import Scanner
+from somaari_disk.platform import get_platform
 
 IS_WINDOWS = sys.platform == "win32"
 

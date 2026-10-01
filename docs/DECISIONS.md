@@ -57,6 +57,7 @@ Format: `- [date] decision - reason`
 - [2026-10-01] Windows scandir re-stats each regular file (os.lstat) for file index, link count and volume serial - DirEntry.stat lacks them; needed to count hard links once (WinSxS). Costs one open per file on Windows only.
 - [2026-10-01] Windows volume id = volume GUID (stable per machine, survives replug), else volume serial - same "survives replug" goal as Linux fs UUIDs.
 - [2026-10-01] WebView2 runtime checked in the registry before pywebview loads; missing runtime = native dialog + exit 1 - pywebview's own error is a traceback.
+- [2026-10-01] App renamed to somaari-disk (distribution, CLI, platformdirs folders), package somaari_disk - a hyphen is not valid in a Python import name. Saved scans/logs in the old disk-usage-analyzer folders are not migrated: the app rescans; old folders can be deleted by hand.
 
 ## Deferred
 - lsblk mount-point matching for LVM/LUKS mappers - needs that hardware; UUID ids done in Stage 6.

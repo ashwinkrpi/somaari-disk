@@ -12,17 +12,17 @@ from pathlib import Path
 
 import pytest
 
-from disk_usage_analyzer import cli
-from disk_usage_analyzer.api.bridge import Api
-from disk_usage_analyzer.api.scan_store import ScanStore
-from disk_usage_analyzer.core import cache
-from disk_usage_analyzer.core import scanner as scanner_mod
-from disk_usage_analyzer.core.models import Node, ScanResult, ScanWarning
-from disk_usage_analyzer.core.scanner import Scanner
-from disk_usage_analyzer.core.tree import display_name, find_node, iter_nodes, path_segments
-from disk_usage_analyzer.logsetup import LOG_NAME, setup_logging
-from disk_usage_analyzer.platform import get_platform
-from disk_usage_analyzer.platform.fake import FakeDir, FakeFile, FakePlatform
+from somaari_disk import cli
+from somaari_disk.api.bridge import Api
+from somaari_disk.api.scan_store import ScanStore
+from somaari_disk.core import cache
+from somaari_disk.core import scanner as scanner_mod
+from somaari_disk.core.models import Node, ScanResult, ScanWarning
+from somaari_disk.core.scanner import Scanner
+from somaari_disk.core.tree import display_name, find_node, iter_nodes, path_segments
+from somaari_disk.logsetup import LOG_NAME, setup_logging
+from somaari_disk.platform import get_platform
+from somaari_disk.platform.fake import FakeDir, FakeFile, FakePlatform
 from test_api import Recorder, make, sample_tree
 
 BAD = "bad-\udcff-name"  # how the OS hands Python a name that is not valid UTF-8
@@ -67,7 +67,7 @@ def roundtrip(result: ScanResult, scanned_at: int = 1_700_000_000) -> tuple[Scan
 
 @pytest.fixture
 def app_logger():
-    logger = logging.getLogger("disk_usage_analyzer")
+    logger = logging.getLogger("somaari_disk")
     before, level = list(logger.handlers), logger.level
     yield logger
     for h in logger.handlers:
@@ -366,7 +366,7 @@ def test_log_redacts_home_everywhere(tmp_path, app_logger):
     home = tmp_path / "home" / "someone"
     path = setup_logging(tmp_path / "logs", home)
     assert path == tmp_path / "logs" / LOG_NAME
-    log = logging.getLogger("disk_usage_analyzer.test")
+    log = logging.getLogger("somaari_disk.test")
     log.info("opened %s", home / "Videos" / "clip.mp4")
     try:
         raise OSError(2, "gone", str(home / "x"))
@@ -382,16 +382,16 @@ def test_log_redacts_home_everywhere(tmp_path, app_logger):
 
 def test_log_root_home_is_not_blanked(tmp_path, app_logger):
     path = setup_logging(tmp_path / "logs", Path("/"))
-    logging.getLogger("disk_usage_analyzer.test").info("a/b")
+    logging.getLogger("somaari_disk.test").info("a/b")
     assert "a/b" in path.read_text(encoding="utf-8")
 
 
 def test_log_rotates(tmp_path, app_logger, monkeypatch):
-    from disk_usage_analyzer import logsetup
+    from somaari_disk import logsetup
 
     monkeypatch.setattr(logsetup, "MAX_BYTES", 2000)
     path = setup_logging(tmp_path / "logs", Path.home())
-    log = logging.getLogger("disk_usage_analyzer.test")
+    log = logging.getLogger("somaari_disk.test")
     for i in range(400):
         log.info("line %d %s", i, "x" * 50)
     files = sorted(p.name for p in path.parent.iterdir())

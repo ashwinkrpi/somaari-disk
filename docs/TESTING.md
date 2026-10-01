@@ -8,7 +8,7 @@ Below is the manual checklist for real hardware. Run from the Pi desktop, or ove
 ## Daily (about 10 minutes)
 
 1. `.venv/bin/pytest -q`: all pass.
-2. Start the app: `.venv/bin/python -m disk_usage_analyzer`.
+2. Start the app: `.venv/bin/python -m somaari_disk`.
    - The first start on a location scans it. Later starts open the saved scan right away,
      with the notice "Showing the last scan, from <date>".
    - Rescan replaces it, and the notice goes away.
@@ -35,35 +35,35 @@ Below is the manual checklist for real hardware. Run from the Pi desktop, or ove
 
    Scan it. Every item is listed (the bad byte shows as a replacement character). Details
    opens for each, and Show in folder works.
-8. Log: open `~/.config/disk-usage-analyzer/logs/app.log`.
+8. Log: open `~/.config/somaari-disk/logs/app.log`.
    - It has "scan N start/done" lines, but no file names and no home path (home shows as `~`).
    - It stays under 512 KiB; old logs are `app.log.1` to `.3`.
-9. Idle: hide (minimize) the window. `top -p $(pgrep -f disk_usage_analyzer)` shows about 0%
+9. Idle: hide (minimize) the window. `top -p $(pgrep -f somaari_disk)` shows about 0%
    CPU.
 
 ## Weekly / before a release
 
-- `.venv/bin/python -m disk_usage_analyzer bench`: a generated 1M-file tree.
+- `.venv/bin/python -m somaari_disk bench`: a generated 1M-file tree.
   - Pi 5 reference: scan about 9 s, peak about 530 MiB, saved scan about 14 MiB, load about 6 s.
   - Investigate a jump of more than 25%.
 - Big real volume: scan the largest drive you have. Watch `ps -o rss= -p <pid>` and note
   files / time / RSS in docs/DECISIONS.md if they differ much from the bench.
-- Saved scans: `~/.cache/disk-usage-analyzer/scans/` holds at most 8 files. Deleting the
+- Saved scans: `~/.cache/somaari-disk/scans/` holds at most 8 files. Deleting the
   folder is safe (the app rescans).
 - Corrupt a saved scan (`truncate -s 100 <file>`), then start the app. It rescans without an
   error, and the log says "cache unreadable".
 - Dark and light theme, at 1280x800 and 1024x600.
-- CLI: `.venv/bin/python -m disk_usage_analyzer volumes` lists the internal disk, USB and SD
+- CLI: `.venv/bin/python -m somaari_disk volumes` lists the internal disk, USB and SD
   with the right file system, removable and read-only flags.
 
 ## Windows (before a release)
 
-Run from a normal (not admin) PowerShell: `.venv\Scripts\python -m disk_usage_analyzer`.
+Run from a normal (not admin) PowerShell: `.venv\Scripts\python -m somaari_disk`.
 Setup: `py -3.11 -m venv .venv` then `.venv\Scripts\pip install -e ".[dev]"`.
 
 1. Start: the window opens (WebView2). On a machine without the runtime, a dialog explains
    what to install and the app exits.
-2. `.venv\Scripts\python -m disk_usage_analyzer volumes`: C: is system; a USB stick, USB HDD
+2. `.venv\Scripts\python -m somaari_disk volumes`: C: is system; a USB stick, USB HDD
    (NTFS, exFAT) and SD card are removable with the right file system; a mapped network drive
    shows as network; an empty card reader or DVD drive is not listed. No error dialogs.
 3. Replug a USB drive into another port: its saved scan still opens (id survives replug).

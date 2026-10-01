@@ -79,7 +79,7 @@ def print_report(result: ScanResult, top: int, files: int, by: str, out=None) ->
 
 
 def main(argv: list[str] | None = None, platform: Platform | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="disk-usage-analyzer scan")
+    parser = argparse.ArgumentParser(prog="somaari-disk scan")
     parser.add_argument("path", type=Path)
     parser.add_argument("--top", type=int, default=15, help="children of the root to list")
     parser.add_argument("--files", type=int, default=10, help="largest files to list")
@@ -111,7 +111,7 @@ def main(argv: list[str] | None = None, platform: Platform | None = None) -> int
 
 def volumes_main(argv: list[str] | None = None, platform: Platform | None = None, out=None) -> int:
     out = out or sys.stdout
-    argparse.ArgumentParser(prog="disk-usage-analyzer volumes").parse_args(argv)
+    argparse.ArgumentParser(prog="somaari-disk volumes").parse_args(argv)
     for v in (platform or get_platform()).list_volumes():
         flags = [
             name
@@ -173,7 +173,7 @@ def bench_main(argv: list[str] | None = None, out=None) -> int:
     from .platform.fake import FakePlatform
 
     out = out or sys.stdout
-    parser = argparse.ArgumentParser(prog="disk-usage-analyzer bench")
+    parser = argparse.ArgumentParser(prog="somaari-disk bench")
     parser.add_argument("--files", type=int, default=1_000_000)
     parser.add_argument("--workers", type=int, default=4)
     args = parser.parse_args(argv)

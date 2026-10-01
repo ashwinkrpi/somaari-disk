@@ -7,12 +7,12 @@ from pathlib import Path
 
 import pytest
 
-from disk_usage_analyzer.api.bridge import Api, usage_level
-from disk_usage_analyzer.app import js_event_call, wire_window_events
-from disk_usage_analyzer.core.models import Volume
-from disk_usage_analyzer.core.tree import find_node, remove_node, sorted_children
-from disk_usage_analyzer.platform.demo import demo_platform
-from disk_usage_analyzer.platform.fake import FakeDir, FakeFile, FakePlatform
+from somaari_disk.api.bridge import Api, usage_level
+from somaari_disk.app import js_event_call, wire_window_events
+from somaari_disk.core.models import Volume
+from somaari_disk.core.tree import find_node, remove_node, sorted_children
+from somaari_disk.platform.demo import demo_platform
+from somaari_disk.platform.fake import FakeDir, FakeFile, FakePlatform
 
 ROOT = Path("fake-root")
 GB = 10**9
@@ -83,7 +83,7 @@ def assert_json(d):
 
 def test_sorted_children_orders_and_rolls_up():
     plat = FakePlatform(sample_tree())
-    from disk_usage_analyzer.core.scanner import Scanner
+    from somaari_disk.core.scanner import Scanner
 
     root = Scanner(plat).scan(ROOT).root
     top, rest = sorted_children(root, 3, "size")
@@ -96,7 +96,7 @@ def test_sorted_children_orders_and_rolls_up():
 
 
 def test_find_and_remove_node_updates_ancestors():
-    from disk_usage_analyzer.core.scanner import Scanner
+    from somaari_disk.core.scanner import Scanner
 
     root = Scanner(FakePlatform(sample_tree())).scan(ROOT).root
     total = root.size
@@ -539,7 +539,7 @@ def test_get_details_created_unreadable():
 
 
 def test_move_to_trash_no_trash_on_drive():
-    from disk_usage_analyzer.platform.base import TrashUnavailableError
+    from somaari_disk.platform.base import TrashUnavailableError
 
     api, plat, _ = scanned()
     plat.trash_error = TrashUnavailableError(13, "no trash", "x")
@@ -578,7 +578,7 @@ def test_move_to_trash_plain_language_failures():
 def test_os_error_codes():
     import errno
 
-    from disk_usage_analyzer.api.bridge import _os_error
+    from somaari_disk.api.bridge import _os_error
 
     assert _os_error(OSError(errno.EROFS, "ro"))["error"]["code"] == "read_only"
     assert _os_error(FileNotFoundError(errno.ENOENT, "x"))["error"]["code"] == "not_found"

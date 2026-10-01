@@ -2,10 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from disk_usage_analyzer.core.models import Node
-from disk_usage_analyzer.core.scanner import Scanner
-from disk_usage_analyzer.core.tree import iter_nodes, largest_files, path_segments, top_children
-from disk_usage_analyzer.platform.fake import BLOCK, FakeDir, FakeFile, FakeLink, FakePlatform
+from somaari_disk.core.models import Node
+from somaari_disk.core.scanner import Scanner
+from somaari_disk.core.tree import iter_nodes, largest_files, path_segments, top_children
+from somaari_disk.platform.fake import BLOCK, FakeDir, FakeFile, FakeLink, FakePlatform
 
 ROOT = Path("fake-root")
 

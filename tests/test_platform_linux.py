@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from disk_usage_analyzer.platform import get_platform, linux
-from disk_usage_analyzer.platform.linux import LinuxPlatform, build_volumes, parse_lsblk
+from somaari_disk.platform import get_platform, linux
+from somaari_disk.platform.linux import LinuxPlatform, build_volumes, parse_lsblk
 
 POSIX_ONLY = pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
 IS_ROOT = hasattr(os, "geteuid") and os.geteuid() == 0
@@ -285,7 +285,7 @@ def test_created_without_statx(tmp_path, monkeypatch):
 
 
 def test_trash_without_trash_dir(tmp_path, monkeypatch):
-    from disk_usage_analyzer.platform.base import TrashUnavailableError
+    from somaari_disk.platform.base import TrashUnavailableError
 
     class TrashPermissionError(PermissionError):  # same name as send2trash's
         pass
