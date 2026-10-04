@@ -49,7 +49,15 @@ def _license_text(dist) -> str:
     meta = dist.metadata
     parts = [meta.get("License-Expression") or "", (meta.get("License") or "")[:200]]
     parts += [c for c in meta.get_all("Classifier") or [] if c.startswith("License")]
-    return " ".join(parts).upper()
+    text = " ".join(parts).strip()
+    if not text:  # e.g. clr_loader declares no license field; its LICENSE file is MIT
+        for f in dist.files or []:
+            if f.name.upper().startswith(("LICENSE", "LICENCE", "COPYING")):
+                text = f.read_text(encoding="utf-8", errors="replace")[:300]
+                break
+    if "Permission is hereby granted, free of charge" in text:  # MIT license body
+        text += " MIT"
+    return text.upper()
 
 
 def test_runtime_dependencies_are_permissive_and_listed():

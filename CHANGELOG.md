@@ -20,3 +20,4 @@
 - [2026-10-04] Log redaction also hides the home path in its repr form (doubled backslashes) and ignores case on Windows - Windows CI showed the home leaking through exception text in tracebacks
 - [2026-10-04] Window title, page heading and WebView2 dialog say "Somaari Disk" - matched the menu entry and installer
 - [2026-10-04] Release workflow builds .deb + Windows zip/installer on every push to main as run artifacts - test builds without a release tag
+- [2026-10-04] License test reads a package's LICENSE file when its metadata has no license field - clr_loader (MIT, Windows-only) failed the Windows release run
