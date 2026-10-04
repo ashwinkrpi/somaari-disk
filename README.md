@@ -69,6 +69,8 @@ python3 -m venv --system-site-packages .venv
 .venv/bin/pip install -e ".[dev]"
 .venv/bin/pytest -q
 .venv/bin/ruff check . && .venv/bin/ruff format .
+scripts/ship.py          # push: bumps the patch version (0.1.0 -> 0.1.1), commits, pushes
+scripts/ship.py major    # bigger bump: minor (0.2.0), major (1.0.0) or an exact X.Y.Z
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
