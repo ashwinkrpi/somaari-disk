@@ -66,6 +66,7 @@ Format: `- [date] decision - reason`
 - [2026-10-04] App icon: three decreasing bars on the top-panel navy (design tokens), SVG source + committed PNG/ICO (packaging/icons/make_icons.py, rsvg-convert) - release builds need no image tools.
 - [2026-10-04] Top-panel selects use `appearance: none` + a CSS-gradient chevron - WebKitGTK painted them from the GTK theme (light background, light text in the light theme). A data-URI SVG chevron would contain an xmlns URL that the no-network test rejects.
 - [2026-10-04] Display name "Somaari Disk" everywhere (window title, page heading, menu entry, installer, WebView2 dialog); .desktop GenericName stays "Disk Usage" so menus can show what it does - owner chose one name.
+- [2026-10-04] Release workflow also builds on every push to main (doc-only changes skipped); the builds are run artifacts, and only v* tags make a draft release - test builds without cutting a release. Costs Actions minutes while the repo is private (Windows counts 2x).
 
 ## Before going public (owner decisions)
 - Version for the first release (pyproject + __init__ are 0.0.1; suggest 0.1.0) and tag `v<version>`.

@@ -1,9 +1,11 @@
 name: Release
-# Push a tag vX.Y.Z (matching pyproject version) to build everything into a DRAFT release.
-# Review the draft on GitHub, then publish it by hand.
+# Push to main: build everything as run artifacts (Actions > run > Artifacts, kept 90 days).
+# Push a tag vX.Y.Z (matching pyproject version): also make a DRAFT release; publish by hand.
 on:
   push:
+    branches: [main]
     tags: ["v*"]
+    paths-ignore: ["**.md", "docs/**", "design/**"] # not applied to tag pushes
   workflow_dispatch:
 permissions:
   contents: read
