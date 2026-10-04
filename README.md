@@ -51,8 +51,16 @@ somaari-disk scan PATH  # text report, no window
 somaari-disk volumes    # list drives
 ```
 
-Keyboard: arrows, Home/End, PgUp/PgDn to move; Enter opens a folder; Backspace goes up;
-Delete moves the selected file to Trash (asks first).
+Keyboard (everything works without a mouse):
+
+- List: arrows, Home/End, PgUp/PgDn move; Enter opens a folder; Backspace or Alt+Up goes up.
+- Select several: Shift+arrows (range), Ctrl+arrows move without selecting, then Ctrl+Space
+  adds/removes a row; Space selects only the focused row; Ctrl+A all; Esc back to one.
+- Delete moves the selected files to Trash (asks first). In the dialog, Left/Right switch
+  between Cancel and Move to Trash; Tab reaches the list of names; Esc cancels.
+- Tab moves between controls; F6 / Shift+F6 jump between the top bar, the list and the details
+  panel; Left/Right move between the panel's buttons and the breadcrumb.
+- F5 rescans; Esc stops a scan.
 
 ## Develop
 

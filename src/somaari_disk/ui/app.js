@@ -1,5 +1,6 @@
 // UI shell. Talks only to window.pywebview.api; formats sizes and dates. No OS access.
 
+import { arrowTarget, nextArea } from "./keys.js";
 import { clickSelection, inListOrder, nextAfterRemoval, pruneSelection } from "./selection.js";
 
 const $ = (id) => document.getElementById(id);
@@ -433,9 +434,38 @@ function fileType(d) {
 function sideButton(label, iconName, cls, onClick) {
   const b = el("button", cls);
   b.type = "button";
+  b.dataset.action = iconName; // focus goes back to the same action after a re-render
   b.append(icon(iconName), el("span", null, label));
   b.addEventListener("click", onClick);
   return b;
+}
+
+// Arrow keys (and Home/End) move between the buttons of a group; keys.js picks the target.
+function arrowNav(container) {
+  container.addEventListener("keydown", (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    const btns = [...container.querySelectorAll("button")];
+    const i = btns.indexOf(document.activeElement);
+    if (i < 0) return;
+    const t = arrowTarget(btns.length, i, e.key, btns.map((b) => b.disabled));
+    if (t === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    btns[t].focus();
+  });
+}
+
+// Swap the side panel's content without losing keyboard focus that was inside it.
+function replaceSide(side, ...nodes) {
+  const active = side.contains(document.activeElement) ? document.activeElement : null;
+  const action = active && active.dataset ? active.dataset.action : undefined;
+  side.replaceChildren(...nodes);
+  side.hidden = false;
+  if (!active) return;
+  const focusable = [...side.querySelectorAll("button:not(:disabled), [tabindex='0']")];
+  const same = action && focusable.find((b) => b.dataset.action === action && !b.disabled);
+  const target = same || focusable[0] || tabbableRow();
+  if (target) target.focus();
 }
 
 // File details per the boards: facts, then Show in folder + Move to Trash.
@@ -460,7 +490,9 @@ function fileDetails(body, item, d) {
   if (!d.ok) return;
   const actions = el("div", "side-actions");
   const trash = sideButton("Move to Trash", "trash", "action danger", () => trashItem(item));
+  trash.title = "Delete";
   actions.append(sideButton("Show in folder", "reveal", "action", () => reveal(item)), trash);
+  arrowNav(actions);
   body.append(actions);
   if (d.trash_blocked) {
     // plain-language reason next to the disabled button (read-only drive, scan running)
@@ -491,6 +523,7 @@ function renderMulti(side, f, items) {
   body.append(el("h3", null, "Selected items"));
   const ul = el("ul", "mini mini-scroll");
   ul.setAttribute("aria-label", "Selected items");
+  ul.tabIndex = 0; // keyboard users scroll the list with the arrow keys
   for (const c of [...items].sort((a, b) => b.size - a.size)) {
     const li = el("li");
     const n = el("span", "n");
@@ -502,7 +535,9 @@ function renderMulti(side, f, items) {
   const actions = el("div", "side-actions");
   const label = files.length ? `Move ${count(files.length, "file", "files")} to Trash` : "Move to Trash";
   const trash = sideButton(label, "trash", "action danger", () => trashItems(items));
+  trash.title = "Delete";
   actions.append(trash);
+  arrowNav(actions);
   body.append(actions);
   if (!files.length || dirs) {
     // same rule as Delete on a single row: only files go to the Trash from here
@@ -512,8 +547,7 @@ function renderMulti(side, f, items) {
     trash.disabled = !files.length;
     body.append(why);
   }
-  side.replaceChildren(sideHead("file", "Selection", `${count(items.length, "item", "items")} selected`), body);
-  side.hidden = false;
+  replaceSide(side, sideHead("file", "Selection", `${count(items.length, "item", "items")} selected`), body);
 }
 
 // Right panel: the selected row, several selected rows, or the open folder when none is selected.
@@ -571,8 +605,7 @@ async function renderSide() {
     fileDetails(body, item, details);
   }
   const kicker = item === f.node ? "Open folder" : item.is_dir ? "Folder" : "File details";
-  side.replaceChildren(sideHead(item.is_dir ? "folder" : "file", kicker, item.name), body);
-  side.hidden = false;
+  replaceSide(side, sideHead(item.is_dir ? "folder" : "file", kicker, item.name), body);
 }
 
 function renderList(focus = false) {
@@ -705,6 +738,27 @@ function applySelection(selection, focus, anchor) {
   renderSide();
 }
 
+// Ctrl+arrows: move the keyboard focus without changing the selection (Ctrl+Space then toggles).
+function moveFocus(name) {
+  state.selected = name;
+  tabbableRow();
+}
+
+// F6 / Shift+F6 cycle the areas: top bar, the list, the details panel.
+function cycleArea(back) {
+  const top = ["location", "up", "theme", "rescan"].map($).find((c) => !c.disabled);
+  const list = tabbableRow() || $("list-state").querySelector("button");
+  const side = $("side").hidden ? null : $("side").querySelector("button:not(:disabled), [tabindex='0']");
+  const areas = [
+    [document.querySelector(".top"), top],
+    [document.querySelector(".list-panel"), list],
+    [$("side"), side],
+  ].filter(([, target]) => target);
+  const current = areas.findIndex(([box]) => box.contains(document.activeElement));
+  const n = nextArea(areas.length, current, back);
+  if (n !== null) areas[n][1].focus();
+}
+
 function goUp() {
   if (!state.folder || state.folder.is_root) return;
   const segs = state.folder.node.segments;
@@ -817,15 +871,22 @@ function onRowsKey(e) {
     applySelection(new Set(names), state.selected ?? names[0], state.anchor ?? names[0]);
     return;
   }
-  if (e.ctrlKey || e.metaKey) return;
+  const ctrl = e.ctrlKey || e.metaKey;
   const i = btns.indexOf(document.activeElement);
   const page = 8;
   const moves = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: btns.length - 1, PageDown: i + page, PageUp: i - page };
   if (e.key in moves) {
     e.preventDefault();
     const target = btns[Math.max(0, Math.min(btns.length - 1, moves[e.key]))];
-    select(target.dataset.name, { shift: e.shiftKey });
+    if (ctrl && !e.shiftKey) moveFocus(target.dataset.name); // focus only, like Explorer
+    else select(target.dataset.name, { shift: e.shiftKey, ctrl: ctrl && e.shiftKey });
     target.focus();
+  } else if (e.key === " " && i >= 0) {
+    // Space: this row only; Ctrl+Space: add/remove it; Shift+Space: range from the anchor.
+    e.preventDefault(); // the button would also "click" (and select only this row)
+    select(btns[i].dataset.name, { ctrl, shift: e.shiftKey });
+  } else if (ctrl) {
+    return;
   } else if (e.key === "Escape" && state.selection.size > 1 && state.selected !== null) {
     e.preventDefault();
     e.stopPropagation(); // not also "stop the scan"
@@ -839,7 +900,8 @@ function onRowsKey(e) {
     e.preventDefault();
     trashItems(selectedItems());
   } else if (e.key === "Delete" && i >= 0) {
-    const c = childByName(btns[i].dataset.name);
+    // the selected row (focus may have moved away with Ctrl+arrows), else the focused one
+    const c = selectedItems()[0] || childByName(btns[i].dataset.name);
     if (c && !c.is_dir) {
       e.preventDefault();
       select(c.name);
@@ -922,6 +984,11 @@ function bindControls() {
   $("up").addEventListener("click", goUp);
   $("rescan").addEventListener("click", rescanOrStop);
   $("rows").addEventListener("keydown", onRowsKey);
+  $("rows").addEventListener("keyup", (e) => {
+    if (e.key === " ") e.preventDefault(); // Space is handled on keydown; no button click too
+  });
+  arrowNav($("breadcrumb"));
+  arrowNav(document.querySelector("#confirm .dialog-actions"));
   $("theme").addEventListener("change", async (e) => {
     state.theme = e.target.value;
     applyTheme();
@@ -942,6 +1009,9 @@ function bindControls() {
       if (!state.scanning && !$("rescan").disabled) startScan(state.location);
     } else if (e.key === "Escape" && state.scanning) {
       call("cancel_scan");
+    } else if (e.key === "F6") {
+      e.preventDefault();
+      cycleArea(e.shiftKey);
     }
   });
 }

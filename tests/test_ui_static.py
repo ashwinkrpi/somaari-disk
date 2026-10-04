@@ -291,7 +291,8 @@ def test_selection_module_is_pure_and_local():
 def test_multi_select_clicks_keys_and_panel():
     # Ctrl/Shift+click and Shift+arrows, Ctrl+A, Esc, Delete on several rows
     assert "ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey" in JS
-    assert "{ shift: e.shiftKey }" in JS
+    # Shift+arrows extend; Ctrl+Shift+arrows add the range (keyboard Ctrl+Shift+click)
+    assert "{ shift: e.shiftKey, ctrl: ctrl && e.shiftKey }" in JS
     assert 'e.key.toLowerCase() === "a"' in JS
     assert 'e.key === "Escape" && state.selection.size > 1' in JS
     assert "trashItems(selectedItems())" in JS
@@ -305,3 +306,77 @@ def test_multi_select_clicks_keys_and_panel():
     assert 'id="confirm-list"' in HTML and 'id="confirm-title"' in HTML
     assert "confirmTrash(files[0], files)" in JS
     assert 'call("move_to_trash", c.segments, true)' in JS
+
+
+KEYS_JS = (UI / "keys.js").read_text(encoding="utf-8")
+
+_KEYS_HARNESS = r"""
+const src = require("fs").readFileSync(process.argv[1], "utf8");
+import("data:text/javascript," + encodeURIComponent(src)).then((m) => {
+  const t = m.arrowTarget;
+  console.log(JSON.stringify({
+    right: t(2, 0, "ArrowRight"),
+    left: t(2, 1, "ArrowLeft"),
+    down: t(3, 0, "ArrowDown"),
+    up: t(3, 2, "ArrowUp"),
+    wrapRight: t(2, 1, "ArrowRight"),
+    wrapLeft: t(2, 0, "ArrowLeft"),
+    home: t(4, 2, "Home"),
+    end: t(4, 1, "End"),
+    skip: t(3, 0, "ArrowRight", [false, true, false]),
+    homeSkip: t(3, 2, "Home", [true, false, false]),
+    onlyOne: t(2, 0, "ArrowRight", [false, true]),
+    noneEnabled: t(2, 0, "ArrowRight", [true, true]),
+    otherKey: t(2, 0, "Enter"),
+    empty: t(0, -1, "ArrowRight"),
+    f6: m.nextArea(3, 0), f6wrap: m.nextArea(3, 2), f6back: m.nextArea(3, 0, true),
+    f6outside: m.nextArea(3, -1), f6outsideBack: m.nextArea(3, -1, true), f6none: m.nextArea(0, -1),
+  }));
+});
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_arrow_keys_move_between_buttons():
+    out = subprocess.run(
+        ["node", "-e", _KEYS_HARNESS, str(UI / "keys.js")],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=True,
+    ).stdout
+    r = json.loads(out)
+    assert (r["right"], r["left"], r["down"], r["up"]) == (1, 0, 1, 1)
+    assert (r["wrapRight"], r["wrapLeft"]) == (0, 1)
+    assert (r["home"], r["end"]) == (0, 3)
+    assert r["skip"] == 2 and r["homeSkip"] == 1  # disabled buttons are skipped
+    assert r["onlyOne"] == 0  # the only enabled button keeps focus
+    assert r["noneEnabled"] is None and r["otherKey"] is None and r["empty"] is None
+    assert (r["f6"], r["f6wrap"], r["f6back"]) == (1, 0, 2)
+    assert (r["f6outside"], r["f6outsideBack"], r["f6none"]) == (0, 2, None)
+
+
+def test_keys_module_is_pure_and_local():
+    assert 'from "./keys.js"' in JS
+    assert "document" not in KEYS_JS and "window" not in KEYS_JS and "call(" not in KEYS_JS
+    assert not re.search(r"(https?:)?//[a-z0-9.-]+\.[a-z]{2,}/", KEYS_JS, re.I)
+
+
+def test_everything_reachable_without_a_mouse():
+    # arrows between buttons: the trash dialog, the side panel actions, the breadcrumb
+    assert 'arrowNav(document.querySelector("#confirm .dialog-actions"))' in JS
+    assert 'arrowNav($("breadcrumb"))' in JS
+    assert JS.count("arrowNav(actions)") == 2  # single-file and multi-select panels
+    # long name lists can take focus, so they scroll with the keyboard
+    assert 'id="confirm-list"' in HTML and 'tabindex="0"' in HTML
+    assert "ul.tabIndex = 0" in JS
+    # rows: Ctrl+arrows move focus only, Space / Ctrl+Space / Shift+Space select
+    assert "moveFocus(target.dataset.name)" in JS
+    assert 'e.key === " "' in JS and "{ ctrl, shift: e.shiftKey }" in JS
+    assert "outline-style: dashed" in CSS
+    # F6 cycles the areas; side panel re-renders keep focus
+    assert 'e.key === "F6"' in JS and "cycleArea(e.shiftKey)" in JS
+    assert "replaceSide(side," in JS and "side.replaceChildren(" not in JS.replace(
+        "side.replaceChildren(...nodes)", ""
+    ).replace("side.replaceChildren();", "")
+    assert 'trash.title = "Delete"' in JS
