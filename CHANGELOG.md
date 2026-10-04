@@ -22,3 +22,4 @@
 - [2026-10-04] Release workflow builds .deb + Windows zip/installer on every push to main as run artifacts - test builds without a release tag
 - [2026-10-04] License test reads a package's LICENSE file when its metadata has no license field - clr_loader (MIT, Windows-only) failed the Windows release run
 - [2026-10-04] UI starts only once pywebview's api methods exist (apiReady), not when the empty api object appears - launches sometimes showed no drives, no scan and default theme (2 of 21 test launches, and the first .deb install)
+- [2026-10-04] Version 0.1.0 - first tagged release build

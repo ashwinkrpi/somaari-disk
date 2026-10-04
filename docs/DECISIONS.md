@@ -69,7 +69,7 @@ Format: `- [date] decision - reason`
 - [2026-10-04] Release workflow also builds on every push to main (doc-only changes skipped); the builds are run artifacts, and only v* tags make a draft release - test builds without cutting a release. Costs Actions minutes while the repo is private (Windows counts 2x).
 
 ## Before going public (owner decisions)
-- Version for the first release (pyproject + __init__ are 0.0.1; suggest 0.1.0) and tag `v<version>`.
+- Version: first release is 0.1.0 (decided 2026-10-04), tag `v0.1.0`.
 - Copyright holder name in LICENSE and the .deb Maintainer (now the real name + GitHub noreply email).
 - Keep design/boards/*.dc.html (large, generic sample paths only) and .claude/settings.json + CLAUDE.md in the public repo, or drop them before flipping.
 - Code signing for Windows (unsigned = SmartScreen warning); WebView2 bootstrapper in the installer or keep the in-app message.
