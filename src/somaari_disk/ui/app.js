@@ -325,7 +325,7 @@ function renderNotice() {
 
 function listState() {
   const f = state.folder;
-  if (!api()) return { icon: "folder", title: "Open this page from the Disk Usage app." };
+  if (!api()) return { icon: "folder", title: "Open this page from the Somaari Disk app." };
   if (!f) {
     if (state.disconnected) {
       return { kind: "gone", icon: "unplugged", title: "Drive disconnected", detail: "Reconnect it, then choose it from Location." };

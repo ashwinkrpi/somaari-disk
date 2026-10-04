@@ -10,9 +10,10 @@ from .api.bridge import Api
 
 UI_DIR = Path(__file__).parent / "ui"
 APP_NAME = "somaari-disk"
+APP_TITLE = "Somaari Disk"  # window, menu entry and installer all use this name
 WEBVIEW2_MISSING = (
-    "Disk Usage needs the Microsoft Edge WebView2 Runtime, which is not installed.\n\n"
-    "Install the Evergreen WebView2 Runtime from Microsoft, then start Disk Usage again."
+    "Somaari Disk needs the Microsoft Edge WebView2 Runtime, which is not installed.\n\n"
+    "Install the Evergreen WebView2 Runtime from Microsoft, then start Somaari Disk again."
 )
 
 
@@ -74,13 +75,13 @@ def run(demo: bool = False, debug: bool = False) -> int:
         from .platform.windows import message_box, webview2_version
 
         if not webview2_version():
-            message_box("Disk Usage", WEBVIEW2_MISSING)
+            message_box(APP_TITLE, WEBVIEW2_MISSING)
             return 1
     import webview  # lazy: heavy, GUI-only
 
     api = make_api(demo)
     window = webview.create_window(
-        "Disk Usage" + (" (demo)" if demo else ""),
+        APP_TITLE + (" (demo)" if demo else ""),
         str(UI_DIR / "index.html"),
         js_api=api,
         width=1280,

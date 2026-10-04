@@ -182,3 +182,13 @@ def test_windows_packaging_files():
     assert "PrivilegesRequired=lowest" in iss
     assert re.search(r"AppId=\{\{[0-9A-F-]{36}\}", iss)
     assert "{#AppVersion}" in iss
+
+
+def test_one_display_name_everywhere():
+    title = app.APP_TITLE
+    html = (app.UI_DIR / "index.html").read_text(encoding="utf-8")
+    assert f"<title>{title}</title>" in html
+    assert f'<h1 class="app-title">{title}</h1>' in html
+    assert title in app.WEBVIEW2_MISSING
+    assert f"Name={title}\n" in _load_build_deb().DESKTOP
+    assert f"AppName={title}\n" in (ROOT / "packaging/windows/installer.iss").read_text("utf-8")

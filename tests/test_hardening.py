@@ -8,7 +8,7 @@ import os
 import sys
 import threading
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 import pytest
 
@@ -20,7 +20,7 @@ from somaari_disk.core import scanner as scanner_mod
 from somaari_disk.core.models import Node, ScanResult, ScanWarning
 from somaari_disk.core.scanner import Scanner
 from somaari_disk.core.tree import display_name, find_node, iter_nodes, path_segments
-from somaari_disk.logsetup import LOG_NAME, setup_logging
+from somaari_disk.logsetup import LOG_NAME, RedactingFormatter, setup_logging
 from somaari_disk.platform import get_platform
 from somaari_disk.platform.fake import FakeDir, FakeFile, FakePlatform
 from test_api import Recorder, make, sample_tree
@@ -378,6 +378,31 @@ def test_log_redacts_home_everywhere(tmp_path, app_logger):
     assert "~/Videos/clip.mp4".replace("/", os.sep) in text or "~/Videos/clip.mp4" in text
     assert "start: python" in text
     assert "bad-\\udcff-name" in text
+
+
+def _redact(home, message: str) -> str:
+    record = logging.LogRecord("somaari_disk.t", logging.INFO, __file__, 1, message, None, None)
+    return RedactingFormatter(home, "%(message)s").format(record)
+
+
+def test_log_redacts_windows_home_in_every_form():
+    # Windows CI leaked the home via repr() in tracebacks: backslashes are doubled there
+    home = PureWindowsPath(r"C:\Users\someone")
+    for form in (
+        r"C:\Users\someone\Videos",
+        repr(r"C:\Users\someone\Videos"),  # 'C:\\Users\\someone\\Videos'
+        r"c:\users\SOMEONE\Videos",  # Windows paths are case-insensitive
+        "C:/Users/someone/Videos",
+    ):
+        out = _redact(home, f"failed: {form}")
+        assert "someone" not in out.lower(), out
+        assert "~" in out
+
+
+def test_log_redaction_is_case_sensitive_on_posix():
+    home = PurePosixPath("/home/someone")
+    assert _redact(home, "/home/someone/a") == "~/a"
+    assert _redact(home, "/home/Someone/a") == "/home/Someone/a"  # a different folder
 
 
 def test_log_root_home_is_not_blanked(tmp_path, app_logger):

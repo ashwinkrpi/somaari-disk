@@ -65,11 +65,11 @@ Format: `- [date] decision - reason`
 - [2026-10-04] Release workflow publishes a DRAFT GitHub Release (sdist, wheel, .deb, Windows zip + setup.exe, SHA256SUMS); a human publishes it - nothing goes public by automation.
 - [2026-10-04] App icon: three decreasing bars on the top-panel navy (design tokens), SVG source + committed PNG/ICO (packaging/icons/make_icons.py, rsvg-convert) - release builds need no image tools.
 - [2026-10-04] Top-panel selects use `appearance: none` + a CSS-gradient chevron - WebKitGTK painted them from the GTK theme (light background, light text in the light theme). A data-URI SVG chevron would contain an xmlns URL that the no-network test rejects.
+- [2026-10-04] Display name "Somaari Disk" everywhere (window title, page heading, menu entry, installer, WebView2 dialog); .desktop GenericName stays "Disk Usage" so menus can show what it does - owner chose one name.
 
 ## Before going public (owner decisions)
 - Version for the first release (pyproject + __init__ are 0.0.1; suggest 0.1.0) and tag `v<version>`.
 - Copyright holder name in LICENSE and the .deb Maintainer (now the real name + GitHub noreply email).
-- Display name: window says "Disk Usage", menu/installer say "Somaari Disk" - pick one.
 - Keep design/boards/*.dc.html (large, generic sample paths only) and .claude/settings.json + CLAUDE.md in the public repo, or drop them before flipping.
 - Code signing for Windows (unsigned = SmartScreen warning); WebView2 bootstrapper in the installer or keep the in-app message.
 - Enable GitHub private vulnerability reporting (SECURITY.md points to it) and issue labels bug/enhancement.
