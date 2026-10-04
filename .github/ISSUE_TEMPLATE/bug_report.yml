@@ -1,0 +1,46 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never include real file names, folder names, paths or user names, in text or screenshots.
+        Describe them instead, or reproduce the problem with `somaari-disk --demo`.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: From the release you installed, or `git rev-parse --short HEAD` for source.
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS, CPU and Python
+      placeholder: Raspberry Pi OS 12 arm64, Python 3.11 / Windows 11 x64 installer
+    validations:
+      required: true
+  - type: dropdown
+    id: drive
+    attributes:
+      label: Drive type
+      options: [Internal disk, USB drive, SD card, NVMe / external SSD, Network drive, Not drive related]
+  - type: input
+    id: fs
+    attributes:
+      label: File system
+      placeholder: ext4, exFAT, NTFS, FAT32, btrfs...
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: App log (last lines)
+      description: See "Where the app keeps its files" in INSTALL.md. The log replaces your home folder with ~; check it for other names before pasting.
+      render: text

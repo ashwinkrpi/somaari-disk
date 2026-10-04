@@ -32,6 +32,12 @@ def test_fonts_are_local():
     assert "IBM Plex Sans" in CSS and "IBM Plex Mono" in CSS
 
 
+def test_font_files_bundled_with_license():
+    for url in re.findall(r'url\("([^"]+)"\)', CSS):
+        assert (UI / url).read_bytes()[:4] == b"wOF2", url
+    assert "SIL Open Font License" in (UI / "fonts" / "OFL.txt").read_text(encoding="utf-8")
+
+
 def test_design_tokens_as_css_variables():
     light = ["#EEF0F3", "#16202C", "#4A5565", "#D5D9E0", "#E8F0FA", "#1F4E8C", "#B3261E"]
     dark = ["#0F141B", "#0A0E13", "#E6EAF0", "#1A222D", "#1E3A5F", "#4C8DDB", "#8CC1F0"]

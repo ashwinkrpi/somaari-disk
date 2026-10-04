@@ -1,7 +1,8 @@
 # Installing somaari-disk (test builds)
 
-These steps run the app from source on a test machine. There is no installer yet. You need
-Python 3.11 or newer and about 200 MB of disk space. The app reads your drives but never
+These steps run the app from source on a test machine. For release builds (a `.deb` for
+Debian/Ubuntu/Raspberry Pi OS, a Windows installer or zip) see Install in
+[README.md](README.md). From source you need Python 3.11 or newer and about 200 MB of disk space. The app reads your drives but never
 changes them; the only write is "Move to Trash", and it always asks first.
 
 Replace `<repo-url>` below with the clone URL of this repository. If the repository is

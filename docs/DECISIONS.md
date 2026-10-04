@@ -30,7 +30,7 @@ Format: `- [date] decision - reason`
 - [2026-10-01] Top panel controls use the dark control tokens in both themes - the panel is dark in both palettes. Dark usage-state colors derived (warn #D9A93A/#F2CF7A, low #E8893A/#F5B27A, full #E05252/#F2B8B5); contrast check in Stage 5.
 - [2026-10-01] Name sort = casefold then code point (core is locale-free); the UI may re-sort with Intl.Collator if needed.
 - [2026-10-01] Guarded api methods carry `__signature__` - pywebview builds JS stubs from getfullargspec, which ignores __wrapped__.
-- [2026-10-01] Fonts: @font-face tries locally installed IBM Plex first, then ui/fonts/*.woff2, then system-ui - font files not yet bundled (download needs approval).
+- [2026-10-01] Fonts: @font-face tries locally installed IBM Plex first, then ui/fonts/*.woff2, then system-ui. 2026-10-04: woff2 files (Sans 400/500/600, Mono 500) + OFL.txt bundled from the official IBM/plex GitHub releases (plex-sans 1.1.0, plex-mono 2.5.0).
 - [2026-10-01] Scanner adds each listed folder's sizes to all ancestors (once per folder, not per file) instead of a final bottom-up pass - the live tree stays consistent, so the list can fill in during a scan at O(dirs x depth) cost.
 - [2026-10-01] Live reads (get_children, get_details) use the running scan's tree; open_in_file_manager/move_to_trash still need a finished scan - trash would race the scanner thread mutating the tree.
 - [2026-10-01] Usage level computed in Python (`usage_level`), labels/icons in the UI; "Disk full" = 100% used OR no free space - ext4 reserved blocks leave users at 0 free while used% is ~95%; total 0 = no warning.
@@ -59,6 +59,22 @@ Format: `- [date] decision - reason`
 - [2026-10-01] WebView2 runtime checked in the registry before pywebview loads; missing runtime = native dialog + exit 1 - pywebview's own error is a traceback.
 - [2026-10-01] App renamed to somaari-disk (distribution, CLI, platformdirs folders), package somaari_disk - a hyphen is not valid in a Python import name. Saved scans/logs in the old disk-usage-analyzer folders are not migrated: the app rescans; old folders can be deleted by hand.
 
+- [2026-10-04] Linux release = one `Architecture: all` .deb built with dpkg-deb: GTK/WebKitGTK/PyGObject/psutil from apt (Depends), pure-Python deps vendored in /usr/lib/somaari-disk, bytecode compiled in postinst - freezing GTK/WebKit is fragile on ARM and huge; system Python + apt libs gets security updates. The build fails if any compiled file is vendored. pywebview's Windows/Android binaries (webview/lib) are pruned.
+- [2026-10-04] Windows release = PyInstaller folder build (zip) + Inno Setup per-user installer (no admin) - pywebview documents and hooks PyInstaller (pythonnet + WebView2 DLLs). PyInstaller is GPL-2.0 with a bootloader exception: build-time only and the output may use any license, so the permissive-only rule holds for what we ship; approved by the owner. cx_Freeze (permissive) was the alternative, less proven with pywebview.
+- [2026-10-04] `packaging` (Apache-2.0/BSD) added to dev extras for the dependency-license test; `build` used only in the release workflow - build/test tools, not shipped.
+- [2026-10-04] Release workflow publishes a DRAFT GitHub Release (sdist, wheel, .deb, Windows zip + setup.exe, SHA256SUMS); a human publishes it - nothing goes public by automation.
+- [2026-10-04] App icon: three decreasing bars on the top-panel navy (design tokens), SVG source + committed PNG/ICO (packaging/icons/make_icons.py, rsvg-convert) - release builds need no image tools.
+- [2026-10-04] Top-panel selects use `appearance: none` + a CSS-gradient chevron - WebKitGTK painted them from the GTK theme (light background, light text in the light theme). A data-URI SVG chevron would contain an xmlns URL that the no-network test rejects.
+
+## Before going public (owner decisions)
+- Version for the first release (pyproject + __init__ are 0.0.1; suggest 0.1.0) and tag `v<version>`.
+- Copyright holder name in LICENSE and the .deb Maintainer (now the real name + GitHub noreply email).
+- Display name: window says "Disk Usage", menu/installer say "Somaari Disk" - pick one.
+- Keep design/boards/*.dc.html (large, generic sample paths only) and .claude/settings.json + CLAUDE.md in the public repo, or drop them before flipping.
+- Code signing for Windows (unsigned = SmartScreen warning); WebView2 bootstrapper in the installer or keep the in-app message.
+- Enable GitHub private vulnerability reporting (SECURITY.md points to it) and issue labels bug/enhancement.
+- History audit 2026-10-04: no secrets, hostnames, IPs or personal paths in any commit; only the LICENSE name and the noreply author email. No rewrite needed.
+
 ## Deferred
 - lsblk mount-point matching for LVM/LUKS mappers - needs that hardware; UUID ids done in Stage 6.
 - Memory check on a large real volume (bench covers a generated 1M tree) - manual, see TESTING.md.
@@ -72,5 +88,7 @@ Format: `- [date] decision - reason`
 - Windows: volumes mounted in folders (no drive letter) are not listed - rare; needs FindFirstVolume/GetVolumePathNamesForVolumeName.
 - Windows: owner of a symlink/junction shows the target's owner (GetNamedSecurityInfoW follows links) - needs a handle opened with FILE_FLAG_OPEN_REPARSE_POINT.
 - Windows: MFT-resident small files counted as one cluster on disk - needs FSCTL queries; not worth it.
-- Windows installer, WebView2 bootstrapper chaining, code signing - Stage 8 release workflow.
+- WebView2 bootstrapper chaining and code signing - owner decision (see Before going public).
+- .deb for Python 3.10 distros (Ubuntu 22.04) and rpm/AppImage/Flatpak - not planned; INSTALL.md covers source installs.
+- Windows ARM64 build - no arm64 runner job yet; x64 build runs under emulation.
 

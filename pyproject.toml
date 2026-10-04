@@ -7,6 +7,9 @@ name = "somaari-disk"
 version = "0.0.1"
 description = "Desktop disk usage analyzer"
 license = "MIT"
+license-files = ["LICENSE", "THIRD-PARTY-NOTICES.md"]
+authors = [{ name = "Ashwin Koppam Raghavendra", email = "75906461+ashwinkrpi@users.noreply.github.com" }]
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "pywebview>=5",
@@ -15,8 +18,12 @@ dependencies = [
     "send2trash>=1.8",
 ]
 
+[project.urls]
+Homepage = "https://github.com/ashwinkrpi/somaari-disk"
+Issues = "https://github.com/ashwinkrpi/somaari-disk/issues"
+
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6", "pre-commit>=3"]
+dev = ["pytest>=8", "ruff>=0.6", "pre-commit>=3", "packaging>=23"]
 
 [project.scripts]
 somaari-disk = "somaari_disk.__main__:main"

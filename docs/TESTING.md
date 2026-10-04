@@ -55,6 +55,12 @@ Below is the manual checklist for real hardware. Run from the Pi desktop, or ove
 - Dark and light theme, at 1280x800 and 1024x600.
 - CLI: `.venv/bin/python -m somaari_disk volumes` lists the internal disk, USB and SD
   with the right file system, removable and read-only flags.
+- Release .deb (from the draft release or `python3 packaging/linux/build_deb.py`):
+  `sudo apt install ./dist/somaari-disk_<version>_all.deb`, open **Somaari Disk** from the
+  menu (icon shows in menu and taskbar), scan a USB drive, then `sudo apt remove somaari-disk`
+  leaves nothing in /usr/lib/somaari-disk.
+- Windows setup.exe: installs without admin, Start menu entry opens the app, uninstall from
+  Settings > Apps removes it. The zip build runs from a USB stick.
 
 ## Windows (before a release)
 

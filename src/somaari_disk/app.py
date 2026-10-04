@@ -21,6 +21,12 @@ def gui_backend(platform: str = sys.platform) -> str:
     return "edgechromium" if platform == "win32" else "gtk"
 
 
+def window_icon(platform: str = sys.platform) -> str | None:
+    """Window/taskbar icon for GTK. On Windows the frozen exe carries its own icon."""
+    icon = UI_DIR / "icon.png"
+    return str(icon) if platform != "win32" and icon.is_file() else None
+
+
 def make_api(demo: bool = False) -> Api:
     from platformdirs import user_cache_path, user_config_path
 
@@ -85,5 +91,5 @@ def run(demo: bool = False, debug: bool = False) -> int:
     assert window is not None
     api.set_emitter(lambda event, payload: window.evaluate_js(js_event_call(event, payload)))
     wire_window_events(window.events, api)
-    webview.start(gui=gui_backend(), debug=debug)
+    webview.start(gui=gui_backend(), debug=debug, icon=window_icon())
     return 0
