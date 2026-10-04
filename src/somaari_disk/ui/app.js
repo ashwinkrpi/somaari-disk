@@ -1,5 +1,7 @@
 // UI shell. Talks only to window.pywebview.api; formats sizes and dates. No OS access.
 
+import { clickSelection, inListOrder, nextAfterRemoval, pruneSelection } from "./selection.js";
+
 const $ = (id) => document.getElementById(id);
 
 const state = {
@@ -12,7 +14,9 @@ const state = {
   progress: null,
   folder: null, // last get_children result
   path: [], // segments of the open folder
-  selected: null, // name of the selected row in the open folder
+  selected: null, // name of the focused (last clicked) row in the open folder
+  selection: new Set(), // names of the selected rows (Ctrl/Shift+click for several)
+  anchor: null, // where a Shift range starts
   usage: null, // last get_usage result
   lastScan: null, // last scan_done payload
   loadingCache: false, // showing the saved scan of this location while it loads
@@ -232,12 +236,27 @@ function childByName(name) {
   return state.folder && name !== null ? state.folder.children.find((c) => c.name === name) : null;
 }
 
+function rowNames() {
+  return state.folder ? state.folder.children.map((c) => c.name) : [];
+}
+
+// Selected rows of the open folder, in list order.
+function selectedItems() {
+  return inListOrder(rowNames(), state.selection).map(childByName);
+}
+
+function setSelection(selection, focus, anchor = focus) {
+  state.selection = selection;
+  state.selected = focus;
+  state.anchor = anchor;
+}
+
 function makeRow(c) {
   const b = el("button", "row");
   b.type = "button";
   b.tabIndex = -1;
   b.dataset.name = c.name;
-  b.setAttribute("aria-pressed", String(c.name === state.selected));
+  b.setAttribute("aria-pressed", String(state.selection.has(c.name)));
   const kind = c.is_dir ? "folder" : "file";
   const flag = c.problem ? PROBLEM_TAGS[c.problem] : "";
   b.setAttribute(
@@ -252,7 +271,7 @@ function makeRow(c) {
   fill.style.width = `${Math.min(100, c.share_parent * 100)}%`;
   bar.append(fill);
   b.append(name, bar, el("span", "row-size", formatSize(c.size)), el("span", "row-pct", formatPercent(c.share_parent)));
-  b.addEventListener("click", () => select(c.name));
+  b.addEventListener("click", (e) => select(c.name, { ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey }));
   if (c.is_dir) b.addEventListener("dblclick", () => openFolder(c.segments, null, true));
   const li = el("li");
   li.append(b);
@@ -453,7 +472,51 @@ function fileDetails(body, item, d) {
   }
 }
 
-// Right panel: the selected row, or the open folder when nothing is selected.
+// Several rows selected: the total, then every name and size (largest first), then trash.
+function renderMulti(side, f, items) {
+  const body = el("div", "side-body");
+  if (state.sideError) {
+    const err = el("p", "side-error");
+    err.setAttribute("role", "alert");
+    err.append(icon("error"), el("span", null, state.sideError));
+    body.append(err);
+  }
+  const total = items.reduce((sum, c) => sum + c.size, 0);
+  const files = items.filter((c) => !c.is_dir);
+  const dirs = items.length - files.length;
+  const kinds = [files.length && count(files.length, "file", "files"), dirs && count(dirs, "folder", "folders")];
+  const share = f.node.size > 0 ? total / f.node.size : 0;
+  body.append(el("p", "side-meta", `${formatSize(total)} · ${formatPercent(share)} of ${f.node.name}`));
+  body.append(el("p", "side-path", kinds.filter(Boolean).join(", ")));
+  body.append(el("h3", null, "Selected items"));
+  const ul = el("ul", "mini mini-scroll");
+  ul.setAttribute("aria-label", "Selected items");
+  for (const c of [...items].sort((a, b) => b.size - a.size)) {
+    const li = el("li");
+    const n = el("span", "n");
+    n.append(icon(c.is_dir ? "folder" : "file"), el("span", null, c.name));
+    li.append(n, el("span", "s", formatSize(c.size)));
+    ul.append(li);
+  }
+  body.append(ul);
+  const actions = el("div", "side-actions");
+  const label = files.length ? `Move ${count(files.length, "file", "files")} to Trash` : "Move to Trash";
+  const trash = sideButton(label, "trash", "action danger", () => trashItems(items));
+  actions.append(trash);
+  body.append(actions);
+  if (!files.length || dirs) {
+    // same rule as Delete on a single row: only files go to the Trash from here
+    const why = el("p", "side-note", files.length ? "Folders are skipped; only the selected files are moved." : "Folders can't be moved to the Trash from here.");
+    why.id = "trash-why";
+    trash.setAttribute("aria-describedby", why.id);
+    trash.disabled = !files.length;
+    body.append(why);
+  }
+  side.replaceChildren(sideHead("file", "Selection", `${count(items.length, "item", "items")} selected`), body);
+  side.hidden = false;
+}
+
+// Right panel: the selected row, several selected rows, or the open folder when none is selected.
 async function renderSide() {
   const side = $("side");
   const f = state.folder;
@@ -463,7 +526,12 @@ async function renderSide() {
     side.replaceChildren();
     return;
   }
-  const item = childByName(state.selected) || f.node;
+  const picked = selectedItems();
+  if (picked.length > 1) {
+    renderMulti(side, f, picked);
+    return;
+  }
+  const item = picked[0] || f.node;
   const wantKids = item.is_dir && !item.problem;
   const [details, kids] = await Promise.all([
     call("get_details", item.segments),
@@ -558,7 +626,7 @@ async function startScan(location, cached = false) {
   if (location !== state.location) {
     state.folder = null;
     state.path = [];
-    state.selected = null;
+    setSelection(new Set(), null);
     state.usage = null;
   }
   state.location = location;
@@ -604,9 +672,11 @@ async function openFolder(segments, selectName = null, focus = false) {
   state.path = res.node.segments;
   state.error = null;
   if (moved) {
-    state.selected = selectName;
+    setSelection(new Set(selectName === null ? [] : [selectName]), selectName);
     state.flash = null;
     state.sideError = null;
+  } else {
+    state.selection = pruneSelection(rowNames(), state.selection); // rows can vanish on refresh
   }
   renderTop();
   renderBreadcrumb();
@@ -614,15 +684,23 @@ async function openFolder(segments, selectName = null, focus = false) {
   renderSide();
 }
 
-function select(name) {
-  if (name === state.selected) return;
-  state.selected = name;
+// mods: { ctrl, shift } from the click or key, like a desktop file manager.
+function select(name, mods = {}) {
+  const next = clickSelection(rowNames(), state.selection, state.anchor, name, mods);
+  applySelection(next.selection, next.focus, next.anchor);
+}
+
+function applySelection(selection, focus, anchor) {
+  const same =
+    focus === state.selected && selection.size === state.selection.size && [...selection].every((n) => state.selection.has(n));
+  setSelection(selection, focus, anchor);
+  if (same) return;
   state.sideError = null;
   if (state.flash) {
     state.flash = null;
     renderNotice();
   }
-  for (const b of rowButtons()) b.setAttribute("aria-pressed", String(b.dataset.name === name));
+  for (const b of rowButtons()) b.setAttribute("aria-pressed", String(selection.has(b.dataset.name)));
   tabbableRow();
   renderSide();
 }
@@ -640,10 +718,16 @@ async function reveal(item) {
 }
 
 // Resolves true only if the user picks "Move to Trash". Cancel has focus first; Esc cancels.
-function confirmTrash(item) {
+// Several items: the count and total, then every name.
+function confirmTrash(item, items = null) {
   const dlg = $("confirm");
-  $("confirm-name").textContent = item.name;
-  $("confirm-size").textContent = formatSize(item.size);
+  const list = $("confirm-list");
+  const many = items && items.length > 1;
+  $("confirm-title").textContent = many ? `Move ${count(items.length, "file", "files")} to Trash?` : "Move to Trash?";
+  $("confirm-name").textContent = many ? count(items.length, "file", "files") : item.name;
+  $("confirm-size").textContent = formatSize(many ? items.reduce((sum, c) => sum + c.size, 0) : item.size);
+  list.replaceChildren(...(many ? items.map((c) => el("li", null, c.name)) : []));
+  list.hidden = !many;
   const back = document.activeElement;
   dlg.returnValue = "";
   dlg.showModal();
@@ -673,9 +757,8 @@ async function trashItem(item) {
     renderSide();
     return;
   }
-  const names = state.folder ? state.folder.children.map((c) => c.name) : [];
-  const i = names.indexOf(item.name);
-  state.selected = names[i + 1] ?? names[i - 1] ?? null;
+  const after = nextAfterRemoval(rowNames(), [item.name]);
+  setSelection(new Set(after === null ? [] : [after]), after);
   state.sideError = null;
   state.flash = res.ok
     ? { kind: "done", icon: "trash", text: `Moved "${item.name}" (${formatSize(item.size)}) to the Trash.` }
@@ -684,23 +767,77 @@ async function trashItem(item) {
   loadUsage();
 }
 
-// Arrow keys move the selection, Enter opens a folder, Backspace goes up.
+// Several rows: files only (folders are skipped, as with Delete), one confirmation, then one
+// move_to_trash per file. Totals update in place; the row below the last one gets the selection.
+async function trashItems(items) {
+  const files = items.filter((c) => !c.is_dir);
+  if (files.length <= 1) {
+    if (files.length) await trashItem(files[0]);
+    return;
+  }
+  const checks = await Promise.all(files.map((c) => call("get_details", c.segments)));
+  const blocked = checks.find((d) => d.ok && d.trash_blocked);
+  if (blocked) {
+    state.sideError = blocked.trash_blocked; // read-only drive, scan running: same for all
+    renderSide();
+    return;
+  }
+  if (!(await confirmTrash(files[0], files))) return;
+  let moved = 0;
+  let movedSize = 0;
+  const failed = [];
+  for (const c of files) {
+    const res = await call("move_to_trash", c.segments, true);
+    if (res.ok) {
+      moved += 1;
+      movedSize += c.size;
+    } else if (res.error.code !== "not_found") {
+      failed.push(res.error.message); // gone already counts as done: it's not there any more
+    }
+  }
+  const after = nextAfterRemoval(rowNames(), files.map((c) => c.name));
+  setSelection(new Set(after === null ? [] : [after]), after);
+  state.sideError = null;
+  const done = `Moved ${count(moved, "file", "files")} (${formatSize(movedSize)}) to the Trash.`;
+  state.flash = failed.length
+    ? { kind: "error", icon: "error", text: `${done} ${count(failed.length, "file", "files")} couldn't be moved: ${failed[0]}` }
+    : { kind: "done", icon: "trash", text: done };
+  await openFolder(state.path, null, true);
+  loadUsage();
+}
+
+// Arrow keys move the selection (Shift extends it), Ctrl+A selects all, Esc keeps only the
+// focused row, Enter opens a folder, Delete trashes the selected files, Backspace goes up.
 function onRowsKey(e) {
   const btns = rowButtons();
-  if (!btns.length || e.altKey || e.ctrlKey || e.metaKey) return;
+  if (!btns.length || e.altKey) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+    e.preventDefault();
+    const names = rowNames();
+    applySelection(new Set(names), state.selected ?? names[0], state.anchor ?? names[0]);
+    return;
+  }
+  if (e.ctrlKey || e.metaKey) return;
   const i = btns.indexOf(document.activeElement);
   const page = 8;
   const moves = { ArrowDown: i + 1, ArrowUp: i - 1, Home: 0, End: btns.length - 1, PageDown: i + page, PageUp: i - page };
   if (e.key in moves) {
     e.preventDefault();
     const target = btns[Math.max(0, Math.min(btns.length - 1, moves[e.key]))];
-    select(target.dataset.name);
+    select(target.dataset.name, { shift: e.shiftKey });
     target.focus();
+  } else if (e.key === "Escape" && state.selection.size > 1 && state.selected !== null) {
+    e.preventDefault();
+    e.stopPropagation(); // not also "stop the scan"
+    applySelection(new Set([state.selected]), state.selected, state.selected);
   } else if (e.key === "Enter" && i >= 0) {
     e.preventDefault();
     const c = childByName(btns[i].dataset.name);
     if (c && c.is_dir) openFolder(c.segments, null, true);
     else if (c) select(c.name);
+  } else if (e.key === "Delete" && state.selection.size > 1) {
+    e.preventDefault();
+    trashItems(selectedItems());
   } else if (e.key === "Delete" && i >= 0) {
     const c = childByName(btns[i].dataset.name);
     if (c && !c.is_dir) {

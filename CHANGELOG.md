@@ -24,3 +24,4 @@
 - [2026-10-04] UI starts only once pywebview's api methods exist (apiReady), not when the empty api object appears - launches sometimes showed no drives, no scan and default theme (2 of 21 test launches, and the first .deb install)
 - [2026-10-04] Version 0.1.0 - first tagged release build
 - [2026-10-04] UNINSTALL.md + packaging/linux/uninstall.sh (repeatable clean uninstall of the .deb: closes the app, apt purge, leftovers, app data; --keep-data, --dry-run; no sudo inside, run it with sudo) - clean removal for test installs
+- [2026-10-04] Select several rows (Ctrl/Shift+click, Shift+arrows, Ctrl+A); details panel lists them with the total; Move to Trash for the selected files with one confirmation - clear out many large files at once

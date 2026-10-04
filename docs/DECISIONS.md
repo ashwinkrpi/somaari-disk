@@ -67,6 +67,8 @@ Format: `- [date] decision - reason`
 - [2026-10-04] Top-panel selects use `appearance: none` + a CSS-gradient chevron - WebKitGTK painted them from the GTK theme (light background, light text in the light theme). A data-URI SVG chevron would contain an xmlns URL that the no-network test rejects.
 - [2026-10-04] Display name "Somaari Disk" everywhere (window title, page heading, menu entry, installer, WebView2 dialog); .desktop GenericName stays "Disk Usage" so menus can show what it does - owner chose one name.
 - [2026-10-04] Release workflow also builds on every push to main (doc-only changes skipped); the builds are run artifacts, and only v* tags make a draft release - test builds without cutting a release. Costs Actions minutes while the repo is private (Windows counts 2x).
+- [2026-10-04] Multi-select in the list like a desktop file manager (click, Ctrl+click toggle, Shift+click range from an anchor, Ctrl+Shift+click adds a range, Shift+arrows, Ctrl+A, Esc back to one); rules in a pure ui/selection.js tested under node - testable without a browser, keeps app.js DOM-only
+- [2026-10-04] Several selected rows: details panel lists every name and size with the total; Move to Trash takes the selected files only (folders skipped, same rule as Delete on one row), one confirmation listing them, then the existing move_to_trash per file (no new api) - one call per item keeps the per-item read-only/not-found handling; an already-gone file counts as done
 
 ## Before going public (owner decisions)
 - Version: first release is 0.1.0 (decided 2026-10-04), tag `v0.1.0`.

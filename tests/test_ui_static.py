@@ -1,8 +1,13 @@
 """Static checks on ui/: no network, tokens present, JS only calls real api methods."""
 
+import json
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 import somaari_disk
 from somaari_disk.__main__ import main
@@ -220,3 +225,83 @@ def test_start_waits_for_api_methods():
     assert 'typeof a.list_volumes === "function"' in JS
     assert "if (apiReady()) start();" in JS
     assert "if (api()) start();" not in JS
+
+
+SELECTION_JS = (UI / "selection.js").read_text(encoding="utf-8")
+
+# Runs selection.js as an ES module (via a data: URL, so no package.json is needed) and prints
+# the JSON result of each case. Sets are returned as arrays.
+_NODE_HARNESS = r"""
+const src = require("fs").readFileSync(process.argv[1], "utf8");
+import("data:text/javascript," + encodeURIComponent(src)).then((m) => {
+  const names = ["a", "b", "c", "d", "e"];
+  const pick = (r) => ({ selection: [...r.selection], anchor: r.anchor, focus: r.focus });
+  const S = (...xs) => new Set(xs);
+  console.log(JSON.stringify({
+    plain: pick(m.clickSelection(names, S("a", "b"), "a", "c")),
+    ctrlAdd: pick(m.clickSelection(names, S("a"), "a", "c", { ctrl: true })),
+    ctrlRemove: pick(m.clickSelection(names, S("a", "c"), "a", "c", { ctrl: true })),
+    shiftDown: pick(m.clickSelection(names, S("b"), "b", "d", { shift: true })),
+    shiftUp: pick(m.clickSelection(names, S("d"), "d", "b", { shift: true })),
+    shiftReplaces: pick(m.clickSelection(names, S("a", "e"), "c", "d", { shift: true })),
+    ctrlShiftAdds: pick(m.clickSelection(names, S("a"), "c", "d", { ctrl: true, shift: true })),
+    shiftNoAnchor: pick(m.clickSelection(names, S(), null, "c", { shift: true })),
+    order: m.inListOrder(names, S("e", "a", "c")),
+    prune: [...m.pruneSelection(["a", "c"], S("a", "b", "c"))],
+    nextBelow: m.nextAfterRemoval(names, ["b", "c"]),
+    nextAbove: m.nextAfterRemoval(names, ["d", "e"]),
+    nextGapped: m.nextAfterRemoval(names, ["a", "c", "e"]),
+    nextNone: m.nextAfterRemoval(["a"], ["a"]),
+  }));
+});
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+def test_selection_rules_like_a_file_manager():
+    out = subprocess.run(
+        ["node", "-e", _NODE_HARNESS, str(UI / "selection.js")],
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=True,
+    ).stdout
+    r = json.loads(out)
+    assert r["plain"] == {"selection": ["c"], "anchor": "c", "focus": "c"}
+    assert r["ctrlAdd"]["selection"] == ["a", "c"] and r["ctrlAdd"]["anchor"] == "c"
+    assert r["ctrlRemove"]["selection"] == ["a"]
+    assert r["shiftDown"] == {"selection": ["b", "c", "d"], "anchor": "b", "focus": "d"}
+    assert r["shiftUp"]["selection"] == ["b", "c", "d"] and r["shiftUp"]["anchor"] == "d"
+    assert r["shiftReplaces"]["selection"] == ["c", "d"]  # Shift alone drops the old picks
+    assert sorted(r["ctrlShiftAdds"]["selection"]) == ["a", "c", "d"]
+    assert r["shiftNoAnchor"]["selection"] == ["c"]  # no anchor yet: acts like a plain click
+    assert r["order"] == ["a", "c", "e"]
+    assert r["prune"] == ["a", "c"]
+    assert r["nextBelow"] == "d" and r["nextAbove"] == "c"
+    assert r["nextGapped"] == "d" and r["nextNone"] is None
+
+
+def test_selection_module_is_pure_and_local():
+    assert 'from "./selection.js"' in JS
+    assert "document" not in SELECTION_JS and "window" not in SELECTION_JS
+    assert "call(" not in SELECTION_JS
+    assert not re.search(r"(https?:)?//[a-z0-9.-]+\.[a-z]{2,}/", SELECTION_JS, re.I)
+
+
+def test_multi_select_clicks_keys_and_panel():
+    # Ctrl/Shift+click and Shift+arrows, Ctrl+A, Esc, Delete on several rows
+    assert "ctrl: e.ctrlKey || e.metaKey, shift: e.shiftKey" in JS
+    assert "{ shift: e.shiftKey }" in JS
+    assert 'e.key.toLowerCase() === "a"' in JS
+    assert 'e.key === "Escape" && state.selection.size > 1' in JS
+    assert "trashItems(selectedItems())" in JS
+    assert "String(state.selection.has(c.name))" in JS  # every selected row shows pressed
+    assert "user-select: none" in CSS
+    # details panel: count, total, every name, one trash button for the files
+    for text in ('"Selected items"', '"Selection"', "selected`", "to Trash`", "mini-scroll"):
+        assert text in JS, text
+    assert ".mini-scroll" in CSS
+    # one confirmation listing every file, then one move_to_trash per file
+    assert 'id="confirm-list"' in HTML and 'id="confirm-title"' in HTML
+    assert "confirmTrash(files[0], files)" in JS
+    assert 'call("move_to_trash", c.segments, true)' in JS
