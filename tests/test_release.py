@@ -49,15 +49,24 @@ def _license_text(dist) -> str:
     meta = dist.metadata
     parts = [meta.get("License-Expression") or "", (meta.get("License") or "")[:200]]
     parts += [c for c in meta.get_all("Classifier") or [] if c.startswith("License")]
-    text = " ".join(parts).strip()
-    if not text:  # e.g. clr_loader declares no license field; its LICENSE file is MIT
-        for f in dist.files or []:
-            if f.name.upper().startswith(("LICENSE", "LICENCE", "COPYING")):
-                text = f.read_text(encoding="utf-8", errors="replace")[:300]
-                break
+    text = " ".join(parts).strip() or _license_file_text(dist)
     if "Permission is hereby granted, free of charge" in text:  # MIT license body
         text += " MIT"
     return text.upper()
+
+
+def _license_file_text(dist) -> str:
+    """Start of the bundled LICENSE file, for packages (clr_loader) with no license field."""
+    for f in dist.files or []:
+        if f.name.upper().startswith(("LICENSE", "LICENCE", "COPYING")):
+            path = Path(dist.locate_file(f))
+            return path.read_text(encoding="utf-8", errors="replace")[:600]
+    return ""
+
+
+def test_license_file_fallback_reads_real_package():
+    text = _license_file_text(distribution("pytest"))  # pytest ships LICENSE (MIT)
+    assert "Permission is hereby granted, free of charge" in text
 
 
 def test_runtime_dependencies_are_permissive_and_listed():
