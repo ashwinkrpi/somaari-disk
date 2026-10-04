@@ -176,6 +176,9 @@ delete saved scans at any time; the app scans again.
 
 ## Removing it
 
+Installed from a release package (.deb)? Follow [UNINSTALL.md](UNINSTALL.md) instead.
+For a source checkout:
+
 1. Delete the `somaari-disk` folder that you cloned.
 2. Delete the folders listed in the table above (on Windows, the whole `%LOCALAPPDATA%\somaari-disk` folder).
 

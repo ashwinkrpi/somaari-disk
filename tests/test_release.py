@@ -88,7 +88,14 @@ def test_versions_agree():
 
 
 def test_public_repo_files_exist():
-    for name in ("README.md", "CONTRIBUTING.md", "SECURITY.md", "LICENSE", "INSTALL.md"):
+    for name in (
+        "README.md",
+        "CONTRIBUTING.md",
+        "SECURITY.md",
+        "LICENSE",
+        "INSTALL.md",
+        "UNINSTALL.md",
+    ):
         assert (ROOT / name).is_file(), name
     templates = ROOT / ".github" / "ISSUE_TEMPLATE"
     assert {p.name for p in templates.iterdir()} >= {"bug_report.yml", "feature_request.yml"}

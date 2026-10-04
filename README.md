@@ -40,7 +40,7 @@ Download from [Releases](https://github.com/ashwinkrpi/somaari-disk/releases):
 
 Check downloads against `SHA256SUMS` from the same release.
 
-Other Linux distributions, or running from source: see [INSTALL.md](INSTALL.md).
+Other Linux distributions, or running from source: see [INSTALL.md](INSTALL.md). To uninstall: [UNINSTALL.md](UNINSTALL.md).
 
 ## Use
 
