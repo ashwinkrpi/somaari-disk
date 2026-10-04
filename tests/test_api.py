@@ -703,3 +703,26 @@ def test_guarded_methods_keep_signatures_for_pywebview():
         "on_disk",
     ]
     assert inspect.getfullargspec(Api.move_to_trash).args == ["self", "segments", "confirmed"]
+
+
+def test_move_folder_to_trash_updates_totals():
+    api, plat, _ = scanned()
+    assert api.get_details(["Videos"])["trash_blocked"] is None
+    res = api.move_to_trash(["Videos"], True)
+    assert_json(res)
+    assert res["ok"] and res["removed"]["size"] == 8000
+    assert res["root"]["size"] == 10161 - 8000
+    assert plat.trashed == [ROOT / "Videos"]
+    assert api.get_details(["Videos"])["error"]["code"] == "not_found"
+
+
+def test_folder_holding_another_drive_is_not_trashed():
+    tree = sample_tree()
+    tree.children["Docs"].children["Stick"] = FakeDir({"y": FakeFile(9)}, dev=99)
+    api, plat, _ = scanned(tree=tree)
+    assert "another drive" in api.get_details(["Docs"])["trash_blocked"]
+    assert "another drive" in api.get_details(["Docs", "Stick"])["trash_blocked"]
+    assert api.get_details(["Videos"])["trash_blocked"] is None  # sibling unaffected
+    assert api.get_details(["Docs", "x.pdf"])["trash_blocked"] is None  # files beside it ok
+    assert api.move_to_trash(["Docs"], True)["error"]["code"] == "holds_drive"
+    assert plat.trashed == []

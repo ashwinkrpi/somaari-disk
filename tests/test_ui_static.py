@@ -298,13 +298,13 @@ def test_multi_select_clicks_keys_and_panel():
     assert "trashItems(selectedItems())" in JS
     assert "String(state.selection.has(c.name))" in JS  # every selected row shows pressed
     assert "user-select: none" in CSS
-    # details panel: count, total, every name, one trash button for the files
+    # details panel: count, total, every name, one trash button for every selected item
     for text in ('"Selected items"', '"Selection"', "selected`", "to Trash`", "mini-scroll"):
         assert text in JS, text
     assert ".mini-scroll" in CSS
-    # one confirmation listing every file, then one move_to_trash per file
+    # one confirmation listing every item (folders too), then one move_to_trash per item
     assert 'id="confirm-list"' in HTML and 'id="confirm-title"' in HTML
-    assert "confirmTrash(files[0], files)" in JS
+    assert "confirmTrash(items[0], items)" in JS
     assert 'call("move_to_trash", c.segments, true)' in JS
 
 
@@ -380,3 +380,15 @@ def test_everything_reachable_without_a_mouse():
         "side.replaceChildren(...nodes)", ""
     ).replace("side.replaceChildren();", "")
     assert 'trash.title = "Delete"' in JS
+
+
+def test_folders_can_be_moved_to_trash():
+    # folder side panel gets the same trash row; Delete works on a folder row
+    assert "if (item !== f.node && details.ok) trashActions(body, item, details);" in JS
+    assert "Folders can't be moved" not in JS and "Folders are skipped" not in JS
+    assert "trashItem(c); // asks first" in JS and "if (c && !c.is_dir) {" not in JS
+    # the dialog warns that everything inside a folder goes with it
+    assert 'id="confirm-warn"' in HTML and "confirm-warn confirm-note" in HTML
+    assert "including all its subfolders" in JS and "warn.hidden = !dirs" in JS
+    assert ".dialog-warn" in CSS
+    assert "function kindCount(items)" in JS

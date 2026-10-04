@@ -86,6 +86,10 @@ def _guard(fn):
 
 
 READ_ONLY_MSG = "This drive is read-only, so nothing on it can be changed."
+HOLDS_DRIVE_MSG = (
+    "This folder contains another drive, so it can't be moved to the Trash. "
+    "Open it and move the items inside instead."
+)
 # move_to_trash failures in plain words; read_only and drive_unavailable keep the general text
 TRASH_MESSAGES = {
     "permission": "You don't have permission to move this item. Nothing was moved.",
@@ -461,7 +465,18 @@ class Api:
             return "Wait for the scan to finish before moving items to the Trash."
         if self._read_only:
             return READ_ONLY_MSG
+        if node.is_dir and self._holds_other_drive(result, path_segments(node)):
+            return HOLDS_DRIVE_MSG
         return None
+
+    @staticmethod
+    def _holds_other_drive(result: ScanResult, segments: tuple[str, ...]) -> bool:
+        """True if the folder is, or contains, another drive's mount point (emptying the
+        Trash would then wipe that drive)."""
+        n = len(segments)
+        return any(
+            w.kind == "other_filesystem" and w.path[:n] == segments for w in list(result.warnings)
+        )
 
     @_guard
     def get_usage(self, location: str | None = None) -> dict:
@@ -516,6 +531,8 @@ class Api:
             vol = _volume_for(path, self._platform.list_volumes())
             if vol is not None and vol.is_read_only:
                 raise ApiError("read_only", READ_ONLY_MSG)
+            if node.is_dir and self._holds_other_drive(result, path_segments(node)):
+                raise ApiError("holds_drive", HOLDS_DRIVE_MSG)
             parent = node.parent
             assert parent is not None
             try:

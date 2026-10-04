@@ -43,6 +43,12 @@ export function formatSize(n) {
 }
 
 const count = (n, one, many) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
+// "2 folders, 3 files": folders first, a kind left out when there are none.
+function kindCount(items) {
+  const dirs = items.filter((c) => c.is_dir).length;
+  const files = items.length - dirs;
+  return [dirs && count(dirs, "folder", "folders"), files && count(files, "file", "files")].filter(Boolean).join(", ");
+}
 
 export function formatPercent(share) {
   const pct = share * 100;
@@ -488,14 +494,20 @@ function fileDetails(body, item, d) {
   }
   body.append(dl);
   if (!d.ok) return;
+  trashActions(body, item, d, sideButton("Show in folder", "reveal", "action", () => reveal(item)));
+}
+
+// The side panel's action row ending in Move to Trash; disabled with the reason when blocked.
+function trashActions(body, item, d, ...before) {
   const actions = el("div", "side-actions");
   const trash = sideButton("Move to Trash", "trash", "action danger", () => trashItem(item));
   trash.title = "Delete";
-  actions.append(sideButton("Show in folder", "reveal", "action", () => reveal(item)), trash);
+  actions.append(...before, trash);
   arrowNav(actions);
   body.append(actions);
   if (d.trash_blocked) {
-    // plain-language reason next to the disabled button (read-only drive, scan running)
+    // plain-language reason next to the disabled button (read-only drive, scan running,
+    // a folder holding another drive)
     trash.disabled = true;
     const why = el("p", "side-note", d.trash_blocked);
     why.id = "trash-why";
@@ -514,12 +526,9 @@ function renderMulti(side, f, items) {
     body.append(err);
   }
   const total = items.reduce((sum, c) => sum + c.size, 0);
-  const files = items.filter((c) => !c.is_dir);
-  const dirs = items.length - files.length;
-  const kinds = [files.length && count(files.length, "file", "files"), dirs && count(dirs, "folder", "folders")];
   const share = f.node.size > 0 ? total / f.node.size : 0;
   body.append(el("p", "side-meta", `${formatSize(total)} · ${formatPercent(share)} of ${f.node.name}`));
-  body.append(el("p", "side-path", kinds.filter(Boolean).join(", ")));
+  body.append(el("p", "side-path", kindCount(items)));
   body.append(el("h3", null, "Selected items"));
   const ul = el("ul", "mini mini-scroll");
   ul.setAttribute("aria-label", "Selected items");
@@ -533,20 +542,11 @@ function renderMulti(side, f, items) {
   }
   body.append(ul);
   const actions = el("div", "side-actions");
-  const label = files.length ? `Move ${count(files.length, "file", "files")} to Trash` : "Move to Trash";
-  const trash = sideButton(label, "trash", "action danger", () => trashItems(items));
+  const trash = sideButton(`Move ${kindCount(items)} to Trash`, "trash", "action danger", () => trashItems(items));
   trash.title = "Delete";
   actions.append(trash);
   arrowNav(actions);
   body.append(actions);
-  if (!files.length || dirs) {
-    // same rule as Delete on a single row: only files go to the Trash from here
-    const why = el("p", "side-note", files.length ? "Folders are skipped; only the selected files are moved." : "Folders can't be moved to the Trash from here.");
-    why.id = "trash-why";
-    trash.setAttribute("aria-describedby", why.id);
-    trash.disabled = !files.length;
-    body.append(why);
-  }
   replaceSide(side, sideHead("file", "Selection", `${count(items.length, "item", "items")} selected`), body);
 }
 
@@ -601,6 +601,7 @@ async function renderSide() {
       if (!kids.children.length) ul.append(el("li", "more", kids.partial ? "Scanning..." : "Empty folder"));
       body.append(ul);
     }
+    if (item !== f.node && details.ok) trashActions(body, item, details);
   } else {
     fileDetails(body, item, details);
   }
@@ -772,16 +773,35 @@ async function reveal(item) {
 }
 
 // Resolves true only if the user picks "Move to Trash". Cancel has focus first; Esc cancels.
-// Several items: the count and total, then every name.
+// Several items: the count and total, then every name. Folders add a warning that everything
+// inside them goes too.
 function confirmTrash(item, items = null) {
   const dlg = $("confirm");
   const list = $("confirm-list");
-  const many = items && items.length > 1;
-  $("confirm-title").textContent = many ? `Move ${count(items.length, "file", "files")} to Trash?` : "Move to Trash?";
-  $("confirm-name").textContent = many ? count(items.length, "file", "files") : item.name;
-  $("confirm-size").textContent = formatSize(many ? items.reduce((sum, c) => sum + c.size, 0) : item.size);
-  list.replaceChildren(...(many ? items.map((c) => el("li", null, c.name)) : []));
+  const all = items || [item];
+  const many = all.length > 1;
+  const dirs = all.filter((c) => c.is_dir).length;
+  $("confirm-title").textContent = many ? `Move ${kindCount(all)} to Trash?` : item.is_dir ? "Move folder to Trash?" : "Move to Trash?";
+  $("confirm-name").textContent = many ? kindCount(all) : item.name;
+  $("confirm-size").textContent = formatSize(all.reduce((sum, c) => sum + c.size, 0));
+  list.replaceChildren(
+    ...(many
+      ? all.map((c) => {
+          const li = el("li");
+          const n = el("span", "n");
+          n.append(icon(c.is_dir ? "folder" : "file"), el("span", null, c.name));
+          li.append(n);
+          return li;
+        })
+      : []),
+  );
   list.hidden = !many;
+  const warn = $("confirm-warn");
+  warn.hidden = !dirs;
+  const text = many
+    ? `${count(dirs, "folder is", "folders are")} moved with everything inside, including all subfolders.`
+    : "This folder is moved with everything inside it, including all its subfolders.";
+  warn.replaceChildren(icon("low"), el("span", null, text));
   const back = document.activeElement;
   dlg.returnValue = "";
   dlg.showModal();
@@ -821,47 +841,46 @@ async function trashItem(item) {
   loadUsage();
 }
 
-// Several rows: files only (folders are skipped, as with Delete), one confirmation, then one
-// move_to_trash per file. Totals update in place; the row below the last one gets the selection.
+// Several rows (files and folders): one confirmation, then one move_to_trash per item. Totals
+// update in place; the row below the last one gets the selection.
 async function trashItems(items) {
-  const files = items.filter((c) => !c.is_dir);
-  if (files.length <= 1) {
-    if (files.length) await trashItem(files[0]);
+  if (items.length <= 1) {
+    if (items.length) await trashItem(items[0]);
     return;
   }
-  const checks = await Promise.all(files.map((c) => call("get_details", c.segments)));
-  const blocked = checks.find((d) => d.ok && d.trash_blocked);
-  if (blocked) {
-    state.sideError = blocked.trash_blocked; // read-only drive, scan running: same for all
+  const checks = await Promise.all(items.map((c) => call("get_details", c.segments)));
+  const at = checks.findIndex((d) => d.ok && d.trash_blocked);
+  if (at >= 0) {
+    // read-only drive, scan running (same for all), or one folder holding another drive
+    state.sideError = `"${items[at].name}": ${checks[at].trash_blocked}`;
     renderSide();
     return;
   }
-  if (!(await confirmTrash(files[0], files))) return;
-  let moved = 0;
-  let movedSize = 0;
+  if (!(await confirmTrash(items[0], items))) return;
+  const moved = [];
   const failed = [];
-  for (const c of files) {
+  for (const c of items) {
     const res = await call("move_to_trash", c.segments, true);
     if (res.ok) {
-      moved += 1;
-      movedSize += c.size;
+      moved.push(c);
     } else if (res.error.code !== "not_found") {
       failed.push(res.error.message); // gone already counts as done: it's not there any more
     }
   }
-  const after = nextAfterRemoval(rowNames(), files.map((c) => c.name));
+  const after = nextAfterRemoval(rowNames(), items.map((c) => c.name));
   setSelection(new Set(after === null ? [] : [after]), after);
   state.sideError = null;
-  const done = `Moved ${count(moved, "file", "files")} (${formatSize(movedSize)}) to the Trash.`;
+  const movedSize = moved.reduce((sum, c) => sum + c.size, 0);
+  const done = `Moved ${moved.length ? kindCount(moved) : "nothing"} (${formatSize(movedSize)}) to the Trash.`;
   state.flash = failed.length
-    ? { kind: "error", icon: "error", text: `${done} ${count(failed.length, "file", "files")} couldn't be moved: ${failed[0]}` }
+    ? { kind: "error", icon: "error", text: `${done} ${count(failed.length, "item", "items")} couldn't be moved: ${failed[0]}` }
     : { kind: "done", icon: "trash", text: done };
   await openFolder(state.path, null, true);
   loadUsage();
 }
 
 // Arrow keys move the selection (Shift extends it), Ctrl+A selects all, Esc keeps only the
-// focused row, Enter opens a folder, Delete trashes the selected files, Backspace goes up.
+// focused row, Enter opens a folder, Delete trashes the selected items, Backspace goes up.
 function onRowsKey(e) {
   const btns = rowButtons();
   if (!btns.length || e.altKey) return;
@@ -902,10 +921,10 @@ function onRowsKey(e) {
   } else if (e.key === "Delete" && i >= 0) {
     // the selected row (focus may have moved away with Ctrl+arrows), else the focused one
     const c = selectedItems()[0] || childByName(btns[i].dataset.name);
-    if (c && !c.is_dir) {
+    if (c) {
       e.preventDefault();
       select(c.name);
-      trashItem(c); // asks first; blocked items (read-only drive) show why instead
+      trashItem(c); // asks first; blocked items (read-only drive, holds a drive) show why instead
     }
   }
 }

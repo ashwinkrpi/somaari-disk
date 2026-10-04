@@ -62,14 +62,15 @@
     </section>
     <aside id="side" class="card side" aria-label="Selection details" hidden></aside>
   </main>
-  <dialog id="confirm" class="dialog" aria-labelledby="confirm-title" aria-describedby="confirm-note">
+  <dialog id="confirm" class="dialog" aria-labelledby="confirm-title" aria-describedby="confirm-warn confirm-note">
     <form method="dialog">
       <h2 id="confirm-title">Move to Trash?</h2>
       <dl class="facts">
         <dt>Name</dt><dd id="confirm-name"></dd>
         <dt>Size</dt><dd id="confirm-size"></dd>
       </dl>
-      <ul id="confirm-list" class="mini mini-scroll dialog-list" aria-label="Files to move" tabindex="0" hidden></ul>
+      <ul id="confirm-list" class="mini mini-scroll dialog-list" aria-label="Items to move" tabindex="0" hidden></ul>
+      <p id="confirm-warn" class="dialog-warn" hidden></p>
       <p id="confirm-note" class="dialog-note">You can restore it from the Trash until the Trash is emptied. The space is freed when the Trash is emptied.</p>
       <div class="dialog-actions">
         <button id="confirm-cancel" class="action" value="cancel">Cancel</button>

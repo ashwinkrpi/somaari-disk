@@ -71,6 +71,7 @@ Format: `- [date] decision - reason`
 - [2026-10-04] Several selected rows: details panel lists every name and size with the total; Move to Trash takes the selected files only (folders skipped, same rule as Delete on one row), one confirmation listing them, then the existing move_to_trash per file (no new api) - one call per item keeps the per-item read-only/not-found handling; an already-gone file counts as done
 - [2026-10-04] Full keyboard access: arrow keys move between buttons in button groups only (trash dialog, details-panel actions, breadcrumb; rules in pure ui/keys.js), not in the top bar where arrows must keep changing a select; F6/Shift+F6 cycle top bar, list, details panel (Explorer's F6); Ctrl+arrows move focus without selecting and Ctrl+Space toggles (keyboard Ctrl+click), shown with a dashed focus ring; name lists are tab stops so they scroll by keyboard; details-panel re-renders put focus back on the same action - a user without a mouse can do everything
 - [2026-10-04] Every push goes through scripts/ship.py: patch bump, a "Version X.Y.Z" commit holding only pyproject.toml + __init__.py, then push; minor/major/X.Y.Z on request; no automatic tags - a pre-push hook can't add a commit to the push in progress and a CI bump commit would have to be pulled back; tags start the release workflow, so releases stay deliberate. Version stays in both files (release workflow and tests read pyproject.toml), kept equal by the script and test_versions_agree
+- [2026-10-04] Folders can go to the Trash (side panel button, Delete key, multi-select mixed with files), same move_to_trash per item. The dialog warns that everything inside goes too. A folder that is or contains another drive's mount point is refused (trash_blocked + api check, code holds_drive): emptying the Trash would wipe that drive. Show in folder for folders still not added.
 
 ## Before going public (owner decisions)
 - Version: first release is 0.1.0 (decided 2026-10-04), tag `v0.1.0`.
@@ -83,7 +84,6 @@ Format: `- [date] decision - reason`
 ## Deferred
 - lsblk mount-point matching for LVM/LUKS mappers - needs that hardware; UUID ids done in Stage 6.
 - Memory check on a large real volume (bench covers a generated 1M tree) - manual, see TESTING.md.
-- Show in folder / Move to Trash for selected folders (api supports it; boards show the buttons for files only) - needs a design call.
 - Undo / restore from Trash inside the app - not planned; the OS Trash restores.
 - Sort control and size-on-disk toggle for the list (api supports both) - not in Stage 4 boards; add if wanted.
 - Cache the problems map per scan instead of rebuilding from warnings on each get_children - only if a real many-warning scan proves slow.
