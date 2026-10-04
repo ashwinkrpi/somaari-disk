@@ -98,6 +98,13 @@ function api() {
   return window.pywebview && window.pywebview.api;
 }
 
+// pywebview creates `pywebview.api` as an empty object first and adds the methods just before
+// "pywebviewready"; calling in between fails every call (no drives, no prefs, no scan).
+function apiReady() {
+  const a = api();
+  return !!a && typeof a.list_volumes === "function";
+}
+
 async function call(name, ...args) {
   try {
     return await api()[name](...args);
@@ -815,5 +822,5 @@ async function start() {
 bindControls();
 applyTheme();
 render();
-if (api()) start();
+if (apiReady()) start();
 else window.addEventListener("pywebviewready", start, { once: true });

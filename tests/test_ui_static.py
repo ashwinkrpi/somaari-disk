@@ -213,3 +213,10 @@ def test_usage_scope_line_for_folder_scans():
     assert 'id="usage-scope"' in HTML and ".usage-scope" in CSS
     assert "u.whole_volume" in JS and "u.scanned_size" in JS
     assert "used on this drive" in JS
+
+
+def test_start_waits_for_api_methods():
+    # pywebview.api exists (empty) before its methods; starting then made every call fail
+    assert 'typeof a.list_volumes === "function"' in JS
+    assert "if (apiReady()) start();" in JS
+    assert "if (api()) start();" not in JS
