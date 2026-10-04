@@ -128,6 +128,37 @@ def test_patch_bump_per_push(repo):
     assert versions(repo) == ("0.1.2", "0.1.2")
 
 
+BADGE = "[![Version](https://img.shields.io/badge/version-{}-61afef)](CHANGELOG.md)"
+
+
+def test_readme_badge_follows_the_version(repo):
+    (repo / "README.md").write_text("# Demo\n\n" + BADGE.format("0.0.9") + "\n")  # stale badge
+    git(repo, "add", "README.md")
+    git(repo, "commit", "-qm", "readme")
+    assert run_ship(repo).returncode == 0
+    assert BADGE.format("0.1.1") in (repo / "README.md").read_text()
+    files = git(repo, "show", "--name-only", "--format=", "HEAD").splitlines()
+    assert sorted(files) == ["README.md", "pyproject.toml", "src/demo_app/__init__.py"]
+    assert run_ship(repo, "major").returncode == 0
+    assert BADGE.format("1.0.0") in (repo / "README.md").read_text()
+
+
+def test_readme_without_badge_is_left_alone(repo):
+    (repo / "README.md").write_text("# Demo, version 0.1.0\n")
+    git(repo, "add", "README.md")
+    git(repo, "commit", "-qm", "readme")
+    assert run_ship(repo).returncode == 0
+    assert (repo / "README.md").read_text() == "# Demo, version 0.1.0\n"
+    assert "README.md" not in git(repo, "show", "--name-only", "--format=", "HEAD")
+
+
+def test_this_repo_badge_matches_the_version():
+    readme = (ROOT / "README.md").read_text()
+    if not ship.BADGE.search(readme):
+        pytest.skip("this repo's README has no version badge")
+    assert BADGE.format(ship.read_version(ROOT)) in readme
+
+
 def test_major_and_exact_versions(repo):
     assert run_ship(repo, "major").returncode == 0  # explicit: bumps even with nothing else new
     assert versions(repo) == ("1.0.0", "1.0.0")

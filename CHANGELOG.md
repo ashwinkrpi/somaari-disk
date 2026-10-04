@@ -28,3 +28,4 @@
 - [2026-10-04] Keyboard-only use: Left/Right between Cancel and Move to Trash (and other button groups, breadcrumb), F6 between areas, Ctrl+arrows + Ctrl+Space to pick separate rows, Space/Shift+Space, focusable name lists, focus kept when the details panel refreshes - arrow keys did nothing in the trash dialog
 - [2026-10-04] scripts/ship.py: patch version bump + push in one step (minor/major/X.Y.Z on request, no tags) - each push gets its own version
 - [2026-10-04] Move folders to Trash (single, multi-select, Delete key) with a warning in the dialog; folders holding another drive are refused - deep trees were tedious to clear file by file
+- [2026-10-04] scripts/ship.py also bumps a README version badge (img.shields.io/badge/version-X.Y.Z) in the version commit; skipped when there is none (as here) - same script as somaari-ai, where the badge had gone stale

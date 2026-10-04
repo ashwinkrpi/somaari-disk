@@ -9,10 +9,12 @@
     scripts/ship.py --dry-run        # show what would happen
 
 The version lives in pyproject.toml ([project] version) and src/<package>/__init__.py
-(__version__); both are updated together. No tag is created: tags (vX.Y.Z) start a release
-build, so tag by hand when you want a release. Commit your work first; the bump commit only
-contains the two version files. If a push fails, running this again reuses the bump commit
-instead of bumping twice. Standard library only; no sudo, no network except `git push`.
+(__version__); both are updated together, and so is a shields.io version badge in README.md
+(`img.shields.io/badge/version-X.Y.Z-…`) if there is one. No tag is created: tags (vX.Y.Z)
+start a release build, so tag by hand when you want a release. Commit your work first; the bump
+commit only contains the version files (and README.md for the badge). If a push fails, running
+this again reuses the bump commit instead of bumping twice. Standard library only; no sudo, no
+network except `git push`.
 """
 
 from __future__ import annotations
@@ -26,6 +28,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+# The README badge: whatever version it shows (it may be stale) is replaced.
+BADGE = re.compile(r"(img\.shields\.io/badge/version-)\d+\.\d+\.\d+(-)")
 PARTS = ("patch", "minor", "major")
 
 
@@ -87,6 +91,19 @@ def write_version(root: Path, old: str, new: str) -> None:
     _replace_once(init, rf'^__version__ = "{re.escape(old)}"$', f'__version__ = "{new}"')
 
 
+def write_badge(root: Path, new: str) -> Path | None:
+    """Set the README version badge to `new`; the README if it changed (no badge: None)."""
+    readme = root / "README.md"
+    if not readme.is_file():
+        return None
+    text = readme.read_text(encoding="utf-8")
+    out = BADGE.sub(lambda m: f"{m.group(1)}{new}{m.group(2)}", text, count=1)
+    if out == text:
+        return None
+    readme.write_text(out, encoding="utf-8")
+    return readme
+
+
 def git(root: Path, *args: str, check: bool = True) -> str:
     res = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)  # noqa: S603, S607
     if check and res.returncode != 0:
@@ -121,8 +138,8 @@ def ship(root: Path, part: str = "patch", push: bool = True, dry_run: bool = Fal
         return "Would " + ", then ".join(steps) + "."
     if not reuse:
         write_version(root, current, new)
-        pyproject, init = version_files(root)
-        files = [str(p.relative_to(root)) for p in (pyproject, init)]
+        changed = [*version_files(root), write_badge(root, new)]
+        files = [str(p.relative_to(root)) for p in changed if p is not None]
         git(root, "commit", "-m", f"Version {new}", "--", *files)
     if push:
         git(root, "push", *([] if upstream else ["-u"]), "origin", branch)
