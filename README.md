@@ -37,6 +37,10 @@ Download from [Releases](https://github.com/ashwinkrpi/somaari-disk/releases):
   or the portable `somaari-disk-<version>-windows-x64.zip`. Needs the Microsoft Edge WebView2
   Runtime, which Windows 11 includes; the app tells you if it is missing. Builds are not code
   signed yet, so SmartScreen may warn: choose **More info**, then **Run anyway**.
+- **Windows 10**: Windows Update installs WebView2 on most PCs. Older or un-updated PCs and
+  LTSC editions may not have it: if the app says it is missing, install the **Evergreen
+  Bootstrapper** from Microsoft's WebView2 download page, then start the app again. The
+  installer does not include WebView2.
 
 Check downloads against `SHA256SUMS` from the same release.
 

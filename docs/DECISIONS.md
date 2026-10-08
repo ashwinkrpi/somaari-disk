@@ -78,7 +78,7 @@ Format: `- [date] decision - reason`
 - Version: v0.1.3 is the first published release (2026-10-08); v0.1.0 was tagged but never published (draft deleted 2026-10-08, tag kept).
 - [2026-10-08] Copyright holder name stays "Ashwin KR" in LICENSE, pyproject authors and the .deb Maintainer (with the GitHub noreply email) - same as somaari-ai.
 - [2026-10-08] Windows installer and zip ship unsigned - code signing costs money each year for a hobby release; README tells users how to get past the SmartScreen warning (More info, Run anyway) and to check SHA256SUMS.
-- WebView2: bootstrapper in the installer or keep the in-app message (open).
+- [2026-10-08] WebView2 is not bundled; the app keeps its in-app "WebView2 missing" message and README/INSTALL tell Windows 10 users to install the Evergreen Bootstrapper - Windows 11 and updated Windows 10 already have it; bundling would add a non-permissive redistributable, a network step at install and an untestable path.
 - Enable GitHub private vulnerability reporting (SECURITY.md points to it) and issue labels bug/enhancement.
 - History audit 2026-10-04: no secrets, hostnames, IPs or personal paths in any commit; only the LICENSE name and the noreply author email. No rewrite needed. Re-checked 2026-10-08 after the filter-repo rewrite: still clean (only the `/home/someone` test sample path).
 - [2026-10-08] Dev-only files kept local, not in the public repo: CLAUDE.md, .claude/, docs/BUILD-PLAN.md, design/boards/ (untracked + gitignored), and removed from all past commits and tags with git filter-repo (force-pushed 2026-10-08).
@@ -96,7 +96,7 @@ Format: `- [date] decision - reason`
 - Windows: volumes mounted in folders (no drive letter) are not listed - rare; needs FindFirstVolume/GetVolumePathNamesForVolumeName.
 - Windows: owner of a symlink/junction shows the target's owner (GetNamedSecurityInfoW follows links) - needs a handle opened with FILE_FLAG_OPEN_REPARSE_POINT.
 - Windows: MFT-resident small files counted as one cluster on disk - needs FSCTL queries; not worth it.
-- WebView2 bootstrapper chaining - owner decision (see Before going public). Code signing: not for now (unsigned, 2026-10-08).
+- WebView2 bootstrapper in the installer (Inno Setup registry check + silent per-user run) - only if Windows 10 users report the missing-WebView2 message. Code signing: not for now (unsigned, 2026-10-08).
 - .deb for Python 3.10 distros (Ubuntu 22.04) and rpm/AppImage/Flatpak - not planned; INSTALL.md covers source installs.
 - Windows ARM64 build - no arm64 runner job yet; x64 build runs under emulation.
 

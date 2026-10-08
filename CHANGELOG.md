@@ -34,3 +34,4 @@
 - [2026-10-08] Added .github/dependabot.yml (pip + github-actions, monthly); fixed stale first-release note in DECISIONS.md - release tidy-up
 - [2026-10-08] Release prep stage 3: fresh-venv install, ruff, pytest (279 passed, 6 skipped), tracked-file and README-link check - final verification before going public
 - [2026-10-08] DECISIONS: Windows builds ship unsigned, name kept as is, v0.1.0 draft deleted - owner release decisions recorded
+- [2026-10-08] README/INSTALL: Windows 10 WebView2 note; WebView2 stays unbundled (in-app message) - owner decision M3b

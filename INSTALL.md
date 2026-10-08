@@ -101,8 +101,9 @@ wheels for it. Use 3.11 if 3.12 isn't available.
 
 ### 2. Check the WebView2 Runtime
 
-The window uses Microsoft Edge WebView2. It comes with Windows 11 and with updated
-Windows 10. If the app later says that WebView2 is missing, install the **Evergreen
+The window uses Microsoft Edge WebView2. It comes with Windows 11, and Windows Update
+installs it on most Windows 10 PCs. Older or un-updated Windows 10 and LTSC editions may not
+have it. If the app later says that WebView2 is missing, install the **Evergreen
 Bootstrapper** from Microsoft's WebView2 download page, then start the app again.
 
 ### 3. Get the code and set it up
