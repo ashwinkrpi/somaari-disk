@@ -75,12 +75,13 @@ Format: `- [date] decision - reason`
 - [2026-10-04] Folders can go to the Trash (side panel button, Delete key, multi-select mixed with files), same move_to_trash per item. The dialog warns that everything inside goes too. A folder that is or contains another drive's mount point is refused (trash_blocked + api check, code holds_drive): emptying the Trash would wipe that drive. Show in folder for folders still not added.
 
 ## Before going public (owner decisions)
-- Version: first release is 0.1.0 (decided 2026-10-04), tag `v0.1.0`.
+- Version: v0.1.3 is the first published release (2026-10-08); v0.1.0 was tagged but its release is still a Draft.
 - Copyright holder name in LICENSE and the .deb Maintainer (now the real name + GitHub noreply email).
 - Code signing for Windows (unsigned = SmartScreen warning); WebView2 bootstrapper in the installer or keep the in-app message.
 - Enable GitHub private vulnerability reporting (SECURITY.md points to it) and issue labels bug/enhancement.
-- History audit 2026-10-04: no secrets, hostnames, IPs or personal paths in any commit; only the LICENSE name and the noreply author email. No rewrite needed.
+- History audit 2026-10-04: no secrets, hostnames, IPs or personal paths in any commit; only the LICENSE name and the noreply author email. No rewrite needed. Re-checked 2026-10-08 after the filter-repo rewrite: still clean (only the `/home/someone` test sample path).
 - [2026-10-08] Dev-only files kept local, not in the public repo: CLAUDE.md, .claude/, docs/BUILD-PLAN.md, design/boards/ (untracked + gitignored), and removed from all past commits and tags with git filter-repo (force-pushed 2026-10-08).
+- [2026-10-08] Dependabot (`.github/dependabot.yml`): pip + github-actions, monthly - keeps deps and pinned actions current without noise; PRs still need CI green and a license check (THIRD-PARTY-NOTICES).
 
 ## Deferred
 - lsblk mount-point matching for LVM/LUKS mappers - needs that hardware; UUID ids done in Stage 6.
