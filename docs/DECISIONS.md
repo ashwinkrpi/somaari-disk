@@ -75,9 +75,10 @@ Format: `- [date] decision - reason`
 - [2026-10-04] Folders can go to the Trash (side panel button, Delete key, multi-select mixed with files), same move_to_trash per item. The dialog warns that everything inside goes too. A folder that is or contains another drive's mount point is refused (trash_blocked + api check, code holds_drive): emptying the Trash would wipe that drive. Show in folder for folders still not added.
 
 ## Before going public (owner decisions)
-- Version: v0.1.3 is the first published release (2026-10-08); v0.1.0 was tagged but its release is still a Draft.
-- Copyright holder name in LICENSE and the .deb Maintainer (now the real name + GitHub noreply email).
-- Code signing for Windows (unsigned = SmartScreen warning); WebView2 bootstrapper in the installer or keep the in-app message.
+- Version: v0.1.3 is the first published release (2026-10-08); v0.1.0 was tagged but never published (draft deleted 2026-10-08, tag kept).
+- [2026-10-08] Copyright holder name stays "Ashwin KR" in LICENSE, pyproject authors and the .deb Maintainer (with the GitHub noreply email) - same as somaari-ai.
+- [2026-10-08] Windows installer and zip ship unsigned - code signing costs money each year for a hobby release; README tells users how to get past the SmartScreen warning (More info, Run anyway) and to check SHA256SUMS.
+- WebView2: bootstrapper in the installer or keep the in-app message (open).
 - Enable GitHub private vulnerability reporting (SECURITY.md points to it) and issue labels bug/enhancement.
 - History audit 2026-10-04: no secrets, hostnames, IPs or personal paths in any commit; only the LICENSE name and the noreply author email. No rewrite needed. Re-checked 2026-10-08 after the filter-repo rewrite: still clean (only the `/home/someone` test sample path).
 - [2026-10-08] Dev-only files kept local, not in the public repo: CLAUDE.md, .claude/, docs/BUILD-PLAN.md, design/boards/ (untracked + gitignored), and removed from all past commits and tags with git filter-repo (force-pushed 2026-10-08).
@@ -95,7 +96,7 @@ Format: `- [date] decision - reason`
 - Windows: volumes mounted in folders (no drive letter) are not listed - rare; needs FindFirstVolume/GetVolumePathNamesForVolumeName.
 - Windows: owner of a symlink/junction shows the target's owner (GetNamedSecurityInfoW follows links) - needs a handle opened with FILE_FLAG_OPEN_REPARSE_POINT.
 - Windows: MFT-resident small files counted as one cluster on disk - needs FSCTL queries; not worth it.
-- WebView2 bootstrapper chaining and code signing - owner decision (see Before going public).
+- WebView2 bootstrapper chaining - owner decision (see Before going public). Code signing: not for now (unsigned, 2026-10-08).
 - .deb for Python 3.10 distros (Ubuntu 22.04) and rpm/AppImage/Flatpak - not planned; INSTALL.md covers source installs.
 - Windows ARM64 build - no arm64 runner job yet; x64 build runs under emulation.
 
