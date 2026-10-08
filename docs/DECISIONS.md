@@ -51,7 +51,7 @@ Format: `- [date] decision - reason`
 - [2026-10-01] Names deduped with a per-scan dict instead of sys.intern: same sharing, and the dict is freed after the scan (the intern table cost ~50 B per unique name for the tree's lifetime).
 - [2026-10-01] Memory budget (bench, Pi 5): scan tree ~133 B/node when names/ints are shared, ~250-300 B/node on a real disk (Node 88 + name ~60 + 3 ints 84). 1M files ~ 250-300 MiB. Saved scan for 1M files: 14 MiB, save 6 s, load 5.5 s. Acceptable for the ~2 GiB budget; no array-packed tree yet.
 - [2026-10-01] Non-UTF-8 names stay as surrogate-escaped str end to end (they reopen the real file). JSON to the UI is ASCII-escaped; display_name() swaps bad bytes for U+FFFD where text must be printed (CLI). find_node accepts the U+FFFD form when exactly one child matches, in case the webview bridge normalizes lone surrogates.
-- [2026-10-01] Log: stdlib RotatingFileHandler (512 KiB x 4) in the platformdirs config dir per BUILD-PLAN; errors="backslashreplace" so odd names cannot break logging. Unexpected api exceptions are logged with traceback and returned as code "internal".
+- [2026-10-01] Log: stdlib RotatingFileHandler (512 KiB x 4) in the platformdirs config dir; errors="backslashreplace" so odd names cannot break logging. Unexpected api exceptions are logged with traceback and returned as code "internal".
 - [2026-10-01] Windows OS calls via stdlib ctypes (kernel32/advapi32/user32), not pywin32 - no new dependency, no license or wheel concerns on ARM64 Windows; the calls are few and wrapped in platform/windows.py with argtypes set.
 - [2026-10-01] Windows size on disk = size rounded up to the volume cluster size; GetCompressedFileSizeW only for compressed/sparse/offline/cloud-placeholder files - one extra syscall per file instead of two. Small files resident in the MFT are over-counted by one cluster.
 - [2026-10-01] Windows scandir re-stats each regular file (os.lstat) for file index, link count and volume serial - DirEntry.stat lacks them; needed to count hard links once (WinSxS). Costs one open per file on Windows only.
@@ -77,10 +77,10 @@ Format: `- [date] decision - reason`
 ## Before going public (owner decisions)
 - Version: first release is 0.1.0 (decided 2026-10-04), tag `v0.1.0`.
 - Copyright holder name in LICENSE and the .deb Maintainer (now the real name + GitHub noreply email).
-- Keep design/boards/*.dc.html (large, generic sample paths only) and .claude/settings.json + CLAUDE.md in the public repo, or drop them before flipping.
 - Code signing for Windows (unsigned = SmartScreen warning); WebView2 bootstrapper in the installer or keep the in-app message.
 - Enable GitHub private vulnerability reporting (SECURITY.md points to it) and issue labels bug/enhancement.
 - History audit 2026-10-04: no secrets, hostnames, IPs or personal paths in any commit; only the LICENSE name and the noreply author email. No rewrite needed.
+- [2026-10-08] Dev-only files kept local, not in the public repo: CLAUDE.md, .claude/, docs/BUILD-PLAN.md, design/boards/ (untracked + gitignored). They stay in past commits (audited, nothing sensitive).
 
 ## Deferred
 - lsblk mount-point matching for LVM/LUKS mappers - needs that hardware; UUID ids done in Stage 6.

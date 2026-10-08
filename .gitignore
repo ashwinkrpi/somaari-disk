@@ -18,9 +18,14 @@ htmlcov/
 *.pem
 *.key
 
-# Claude Code local state (keep shared .claude/settings.json)
-.claude/settings.local.json
+# Dev-only files kept local, not in the public repo
+CLAUDE.md
 CLAUDE.local.md
+.claude/
+docs/BUILD-PLAN.md
+design/boards/
+PUBLIC_RELEASE_PLAN.md
+docs/release-report.md
 
 # App runtime data (scan caches, logs)
 *.log

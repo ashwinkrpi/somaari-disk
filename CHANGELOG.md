@@ -29,3 +29,4 @@
 - [2026-10-04] scripts/ship.py: patch version bump + push in one step (minor/major/X.Y.Z on request, no tags) - each push gets its own version
 - [2026-10-04] Move folders to Trash (single, multi-select, Delete key) with a warning in the dialog; folders holding another drive are refused - deep trees were tedious to clear file by file
 - [2026-10-04] scripts/ship.py also bumps a README version badge (img.shields.io/badge/version-X.Y.Z) in the version commit; skipped when there is none (as here) - same script as somaari-ai, where the badge had gone stale
+- [2026-10-08] Untracked dev-only files (CLAUDE.md, .claude/, docs/BUILD-PLAN.md, design/boards/) and gitignored them - not meant for the public repo

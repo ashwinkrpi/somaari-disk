@@ -1,7 +1,6 @@
 # Disk Usage Analyzer: design tokens (extracted from the Claude canvas)
 
-Boards in `boards/` are the visual source of truth (1280x840 reference size).
-They are HTML mockups with static sample data. Open them in a browser to compare against the app.
+The original design boards (HTML mockups, 1280x840 reference size) are not in the repo; `docs/screenshots/` shows the result.
 Fonts: IBM Plex Sans (400/500/600) for UI, IBM Plex Mono (500) for paths and sizes. Bundle locally; no CDN at runtime.
 
 ## Layout (top to bottom)
