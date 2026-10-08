@@ -80,7 +80,7 @@ Format: `- [date] decision - reason`
 - Code signing for Windows (unsigned = SmartScreen warning); WebView2 bootstrapper in the installer or keep the in-app message.
 - Enable GitHub private vulnerability reporting (SECURITY.md points to it) and issue labels bug/enhancement.
 - History audit 2026-10-04: no secrets, hostnames, IPs or personal paths in any commit; only the LICENSE name and the noreply author email. No rewrite needed.
-- [2026-10-08] Dev-only files kept local, not in the public repo: CLAUDE.md, .claude/, docs/BUILD-PLAN.md, design/boards/ (untracked + gitignored). They stay in past commits (audited, nothing sensitive).
+- [2026-10-08] Dev-only files kept local, not in the public repo: CLAUDE.md, .claude/, docs/BUILD-PLAN.md, design/boards/ (untracked + gitignored), and removed from all past commits and tags with git filter-repo (force-pushed 2026-10-08).
 
 ## Deferred
 - lsblk mount-point matching for LVM/LUKS mappers - needs that hardware; UUID ids done in Stage 6.
