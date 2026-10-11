@@ -1,4 +1,5 @@
-"""Entry point: the UI window ([--demo] [--debug]), or `scan <path>` / `volumes` / `bench`."""
+"""Entry point: the UI window ([--demo] [--debug] [--reset-window]),
+or `scan <path>` / `volumes` / `bench`."""
 
 import sys
 
@@ -18,13 +19,15 @@ def main(argv: list[str] | None = None) -> int:
 
         return volumes_main(args[1:])
 
-    unknown = [a for a in args if a not in ("--demo", "--debug")]
+    unknown = [a for a in args if a not in ("--demo", "--debug", "--reset-window")]
     if unknown:
         sys.stderr.write(f"unknown arguments: {' '.join(unknown)}\n")
         return 2
     from .app import run
 
-    return run(demo="--demo" in args, debug="--debug" in args)
+    return run(
+        demo="--demo" in args, debug="--debug" in args, reset_window="--reset-window" in args
+    )
 
 
 if __name__ == "__main__":

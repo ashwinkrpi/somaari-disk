@@ -51,6 +51,7 @@ Other Linux distributions, or running from source: see [INSTALL.md](INSTALL.md).
 ```sh
 somaari-disk            # open the window
 somaari-disk --demo     # try it on a generated sample tree
+somaari-disk --reset-window  # forget saved window size/position (window off-screen)
 somaari-disk scan PATH  # text report, no window
 somaari-disk volumes    # list drives
 ```

@@ -37,3 +37,4 @@
 - [2026-10-08] README/INSTALL: Windows 10 WebView2 note; WebView2 stays unbundled (in-app message) - owner decision M3b
 - [2026-10-09] CI/release workflows: actions/checkout v7, setup-python v7, upload-artifact v6, download-artifact v7 (Dependabot #1-#4) - keep actions current before going public
 - [2026-10-11] BUILD-PLAN Stage 5: window state (size/position/maximized) + `--reset-window` CLI - remember window across runs, recover from monitor changes
+- [2026-10-11] Remember window size, position and maximized state (core/window_state.py, app wiring), `--reset-window` flag, README/INSTALL docs - reopen where the user left it, recover from monitor changes

@@ -148,6 +148,7 @@ of `.venv/bin/python`.
 | `.venv/bin/python -m somaari_disk volumes` | One line per drive, with its size, file system and flags (removable, read-only, network). |
 | `.venv/bin/python -m somaari_disk scan <folder>` | The largest items in that folder, in the terminal. |
 | `.venv/bin/python -m somaari_disk --debug` | The window, with web developer tools enabled. |
+| `.venv/bin/python -m somaari_disk --reset-window` | The window at its default size, centred. The app remembers size and position on close; this forgets them. |
 | `.venv/bin/pytest -q` | Automated tests. All pass; a few are skipped on each OS. |
 
 Manual test checklists are in [docs/TESTING.md](docs/TESTING.md). There is a daily checklist
@@ -197,5 +198,6 @@ unless you know nothing else uses them.
 | Windows: `py` is not recognized | Reinstall Python with "Add python.exe to PATH" ticked, or use the full path to `python.exe`. |
 | Windows: an error about pythonnet or `clr` during install or start | Use Python 3.12. Make sure .NET Framework 4.7.2 or newer is installed (it is on current Windows 10 and 11). |
 | Windows: a dialog says WebView2 is missing | Install the Evergreen WebView2 Runtime (see Windows step 2). |
+| The window opens off-screen, too big, or in the wrong place (for example after unplugging a monitor) | Start once with `--reset-window`. It forgets the saved size and position and opens at the default size, centred. |
 | Drives are missing from the list | Empty card readers and DVD drives aren't listed. Network shares that don't answer within 2 seconds show with zero size. |
 | "No permission" on some folders | Expected for system folders and other users' files. The scan skips them and keeps going. |
