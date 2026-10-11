@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "somaari-disk"
-version = "0.1.5"
+version = "0.1.6"
 description = "Desktop disk usage analyzer"
 license = "MIT"
 license-files = ["LICENSE", "THIRD-PARTY-NOTICES.md"]
