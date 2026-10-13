@@ -9,6 +9,8 @@ import re
 import sys
 from pathlib import Path, PurePath, PureWindowsPath
 
+from .privdir import make_private_dir
+
 MAX_BYTES = 512 * 1024
 BACKUPS = 3  # app.log + 3 old files: at most 2 MiB on disk
 LOG_NAME = "app.log"
@@ -35,7 +37,7 @@ class RedactingFormatter(logging.Formatter):
 def setup_logging(log_dir: Path, home: Path, level: int = logging.INFO) -> Path | None:
     """Log the package to log_dir/app.log. Returns the log path, or None if not writable."""
     try:
-        log_dir.mkdir(parents=True, exist_ok=True)
+        make_private_dir(log_dir)  # the log can name scanned folders
         handler = logging.handlers.RotatingFileHandler(
             log_dir / LOG_NAME,
             maxBytes=MAX_BYTES,

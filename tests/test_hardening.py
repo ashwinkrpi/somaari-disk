@@ -23,6 +23,7 @@ from somaari_disk.core.tree import display_name, find_node, iter_nodes, path_seg
 from somaari_disk.logsetup import LOG_NAME, RedactingFormatter, setup_logging
 from somaari_disk.platform import get_platform
 from somaari_disk.platform.fake import FakeDir, FakeFile, FakePlatform
+from somaari_disk.privdir import make_private_dir
 from test_api import Recorder, make, sample_tree
 
 BAD = "bad-\udcff-name"  # how the OS hands Python a name that is not valid UTF-8
@@ -429,6 +430,27 @@ def test_log_setup_twice_keeps_one_handler(tmp_path, app_logger):
     setup_logging(tmp_path / "b", Path.home())
     files = [h for h in app_logger.handlers if isinstance(h, logging.FileHandler)]
     assert len(files) == 1
+
+
+@POSIX_ONLY
+def test_private_dir_created_and_tightened(tmp_path):
+    new = tmp_path / "a" / "new"
+    make_private_dir(new)
+    assert new.stat().st_mode & 0o777 == 0o700
+    old = tmp_path / "old"
+    old.mkdir(mode=0o755)
+    old.chmod(0o755)
+    make_private_dir(old)  # existing world-readable folders are tightened too
+    assert old.stat().st_mode & 0o777 == 0o700
+
+
+@POSIX_ONLY
+def test_cache_and_log_dirs_are_owner_only(tmp_path, app_logger):
+    store = ScanStore(tmp_path / "scans")
+    assert store.save("uuid:1A2B", fake_scan(), 1)
+    assert setup_logging(tmp_path / "logs", Path.home()) is not None
+    for d in ("scans", "logs"):
+        assert (tmp_path / d).stat().st_mode & 0o777 == 0o700
 
 
 def test_log_unwritable_dir_is_not_fatal(tmp_path, app_logger):

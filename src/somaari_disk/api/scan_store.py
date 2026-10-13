@@ -12,6 +12,7 @@ from pathlib import Path
 
 from ..core import cache
 from ..core.models import ScanResult
+from ..privdir import make_private_dir
 
 log = logging.getLogger(__name__)
 SUFFIX = ".jsonl.gz"
@@ -39,7 +40,7 @@ class ScanStore:
         start = time.monotonic()
         with self._lock:
             try:
-                self.directory.mkdir(parents=True, exist_ok=True)
+                make_private_dir(self.directory)  # caches list every scanned name
                 with gzip.open(tmp, "wt", encoding="ascii", compresslevel=1) as fp:
                     cache.dump(result, fp, scanned_at)
                 tmp.replace(path)

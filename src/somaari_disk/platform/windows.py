@@ -411,7 +411,7 @@ class WindowsPlatform(LocalPlatform):
             k = _k32()
             mask = k.GetLogicalDrives()
         except (OSError, AttributeError) as e:
-            log.warning("list volumes failed: %s", e)
+            log.warning("list volumes failed: %s", type(e).__name__)
             return volumes
         for i in range(26):
             if not mask & (1 << i):
@@ -429,7 +429,7 @@ class WindowsPlatform(LocalPlatform):
                     continue  # no media
                 volumes.append(make_volume(root, drive_type, raw, system_drive))
             except (OSError, ValueError) as e:
-                log.warning("volume query failed: %s", e)
+                log.warning("volume query failed: %s", type(e).__name__)
         return volumes
 
     def owner_and_perms(self, path: Path) -> Permissions:

@@ -41,3 +41,6 @@ Thumbs.db
 
 # Real-data screenshots: only commit ones made in demo mode
 design/screenshots-private/
+
+# Raw demo recordings (somaari-site/scripts/demo)
+docs/demo/

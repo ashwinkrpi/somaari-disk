@@ -217,6 +217,16 @@ def test_list_volumes_never_raises_without_win32(monkeypatch):
     assert WindowsPlatform().list_volumes() == []
 
 
+def test_list_volumes_logs_error_type_only(monkeypatch, caplog):
+    def no_api():
+        raise OSError("detail that may name a path")
+
+    monkeypatch.setattr(win, "_k32", no_api)
+    with caplog.at_level("WARNING"):
+        WindowsPlatform().list_volumes()
+    assert "OSError" in caplog.text and "detail" not in caplog.text
+
+
 # ---- device gone (Windows error codes) -------------------------------------------------
 
 

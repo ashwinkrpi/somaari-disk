@@ -26,6 +26,16 @@ def test_shell_files_linked():
         assert el in HTML
 
 
+def test_csp_blocks_inline_script_and_remote_loads():
+    m = re.search(r'http-equiv="Content-Security-Policy" content="([^"]+)"', HTML)
+    assert m, "index.html needs a CSP meta tag"
+    rules = dict((d.split()[0], d.split()[1:]) for d in m.group(1).split("; "))
+    assert rules["default-src"] == ["'none'"]
+    # 'unsafe-eval' only: pywebview builds its js_api stubs with new Function
+    assert rules["script-src"] == ["'self'", "'unsafe-eval'"]
+    assert not any("unsafe-inline" in v or "http" in v for vs in rules.values() for v in vs)
+
+
 def test_no_network_urls():
     for text in (HTML, CSS, JS):
         assert not re.search(r"(https?:)?//[a-z0-9.-]+\.[a-z]{2,}/", text, re.I)
