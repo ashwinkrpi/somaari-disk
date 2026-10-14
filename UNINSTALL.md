@@ -3,7 +3,7 @@
 - [Linux (.deb package)](#linux-deb-package)
 - [Windows](#windows)
 
-Running from source instead of a package? See "Removing it" in [INSTALL.md](INSTALL.md).
+Running from source, or on Windows? See [Uninstalling](docs/GUIDE.md#uninstalling) in the guide.
 
 ## Linux (.deb package)
 

@@ -93,7 +93,7 @@ def test_public_repo_files_exist():
         "CONTRIBUTING.md",
         "SECURITY.md",
         "LICENSE",
-        "INSTALL.md",
+        "docs/GUIDE.md",
         "UNINSTALL.md",
     ):
         assert (ROOT / name).is_file(), name
@@ -102,12 +102,14 @@ def test_public_repo_files_exist():
     assert (ROOT / ".github" / "workflows" / "release.yml").is_file()
 
 
-def test_readme_screenshots_exist():
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    shots = re.findall(r"\]\((docs/screenshots/[^)]+)\)", readme)
-    assert shots
-    for shot in shots:
-        assert (ROOT / shot).is_file(), shot
+def test_readme_and_guide_images_exist():
+    # Markdown ![..](path) and HTML <img src="path">; guide paths are relative to docs/.
+    for doc, base in (("README.md", ROOT), ("docs/GUIDE.md", ROOT / "docs")):
+        text = (ROOT / doc).read_text(encoding="utf-8")
+        images = re.findall(r'(?:\]\(|src=")((?:docs/)?(?:screenshots|images)/[^)"]+)', text)
+        assert images, doc
+        for image in images:
+            assert (base / image).is_file(), f"{doc}: {image}"
 
 
 def test_window_icon_on_linux_only():

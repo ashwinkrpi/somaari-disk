@@ -39,3 +39,4 @@
 - [2026-10-11] BUILD-PLAN Stage 5: window state (size/position/maximized) + `--reset-window` CLI - remember window across runs, recover from monitor changes
 - [2026-10-11] Remember window size, position and maximized state (core/window_state.py, app wiring), `--reset-window` flag, README/INSTALL docs - reopen where the user left it, recover from monitor changes
 - [2026-10-12] Security pass: scan cache and log folders owner-only (0700) on POSIX, CSP meta in ui/index.html, Windows volume errors logged by type only - cache/log list real file names on a shared machine; defense in depth against HTML injection; keep paths out of logs
+- [2026-10-14] docs/GUIDE.md (install, configuration, using the app with demo screenshots, troubleshooting) replaces INSTALL.md; README restyled (banner, badges, features, diagram, privacy, safety) and points to the guide; new demo screenshots - one place for user docs, README matches somaari-trip

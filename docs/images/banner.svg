@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400">
+  <title>somaari-disk — see what is using space on your drives</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b1119"/>
+      <stop offset="1" stop-color="#16202c"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.8" cy="0.35" r="0.55">
+      <stop offset="0" stop-color="#4c8ddb" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#4c8ddb" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#a9b6c6" fill-opacity="0.06"/>
+    </pattern>
+  </defs>
+
+  <rect width="1280" height="400" rx="20" fill="url(#bg)"/>
+  <rect width="1280" height="400" rx="20" fill="url(#dots)"/>
+  <rect width="1280" height="400" rx="20" fill="url(#glow)"/>
+
+  <!-- left: app icon (three decreasing bars) + wordmark -->
+  <g transform="translate(72 96)">
+    <rect width="96" height="96" rx="22" fill="#1e2b3b" stroke="#2c3d52"/>
+    <rect x="17" y="20" width="62" height="13" rx="3" fill="#8cc1f0"/>
+    <rect x="17" y="42" width="43" height="13" rx="3" fill="#4c8ddb"/>
+    <rect x="17" y="64" width="25" height="13" rx="3" fill="#2a4568"/>
+  </g>
+  <text x="72" y="248" font-family="DejaVu Sans, Segoe UI, Helvetica, Arial, sans-serif"
+        font-size="64" font-weight="700" fill="#e6edf5" letter-spacing="-1">somaari<tspan fill="#8cc1f0">-disk</tspan></text>
+  <text x="74" y="294" font-family="DejaVu Sans, Segoe UI, Helvetica, Arial, sans-serif"
+        font-size="22" fill="#a9b6c6">See what is using space on your drives.</text>
+  <text x="74" y="328" font-family="DejaVu Sans, Segoe UI, Helvetica, Arial, sans-serif"
+        font-size="22" fill="#a9b6c6">Read-only, offline, Linux and Windows.</text>
+
+  <!-- right: app window with usage bar and largest items -->
+  <g transform="translate(600 64)" font-family="DejaVu Sans, Segoe UI, Helvetica, Arial, sans-serif">
+    <rect width="616" height="272" rx="14" fill="#1b2533" stroke="#2c3d52"/>
+    <!-- top panel -->
+    <path d="M0 14 a14 14 0 0 1 14 -14 h588 a14 14 0 0 1 14 14 v26 h-616 z" fill="#0f1720"/>
+    <text x="18" y="26" font-size="14" font-weight="700" fill="#e6edf5">Somaari Disk</text>
+    <rect x="130" y="10" width="200" height="20" rx="4" fill="#1e2b3b" stroke="#2c3d52"/>
+    <text x="140" y="25" font-size="12" fill="#c9d4e0">Internal disk</text>
+    <rect x="530" y="10" width="72" height="20" rx="4" fill="#1e2b3b" stroke="#2c3d52"/>
+    <text x="546" y="25" font-size="12" fill="#c9d4e0">Rescan</text>
+
+    <!-- usage strip -->
+    <circle cx="24" cy="58" r="6" fill="none" stroke="#f2cf7a" stroke-width="2"/>
+    <path d="M24 52 a6 6 0 0 1 0 12 z" fill="#f2cf7a"/>
+    <text x="36" y="63" font-size="13" font-weight="700" fill="#f2cf7a">Filling up</text>
+    <text x="598" y="63" font-size="12" fill="#a9b6c6" text-anchor="end">141 GB used of 256 GB · 55%</text>
+    <rect x="18" y="72" width="580" height="8" rx="4" fill="#2a3646"/>
+    <rect x="18" y="72" width="319" height="8" rx="4" fill="#d9a93a"/>
+    <path d="M308 69 v14 M453 69 v14" stroke="#7d8a9a" stroke-width="2"/>
+
+    <!-- largest items -->
+    <g font-size="13">
+      <rect x="18" y="96" width="580" height="160" rx="8" fill="#16202c" stroke="#2c3d52"/>
+      <g fill="#a9b6c6">
+        <path d="M32 110 h8 l3 3 h9 v10 h-20 z"/>
+        <path d="M32 140 h8 l3 3 h9 v10 h-20 z"/>
+        <path d="M32 170 h8 l3 3 h9 v10 h-20 z"/>
+        <path d="M32 200 h8 l3 3 h9 v10 h-20 z"/>
+        <path d="M34 228 h12 l4 4 v12 h-16 z"/>
+      </g>
+      <g fill="#e6edf5">
+        <text x="62" y="122">Backups</text>
+        <text x="62" y="152">Videos</text>
+        <text x="62" y="182">Games</text>
+        <text x="62" y="212">Downloads</text>
+        <text x="62" y="242">notes.txt</text>
+      </g>
+      <g fill="#24364d">
+        <rect x="260" y="112" width="200" height="10" rx="2"/>
+        <rect x="260" y="142" width="200" height="10" rx="2"/>
+        <rect x="260" y="172" width="200" height="10" rx="2"/>
+        <rect x="260" y="202" width="200" height="10" rx="2"/>
+        <rect x="260" y="232" width="200" height="10" rx="2"/>
+      </g>
+      <g fill="#4c8ddb">
+        <rect x="260" y="112" width="112" height="10" rx="2"/>
+        <rect x="260" y="142" width="40" height="10" rx="2"/>
+        <rect x="260" y="172" width="26" height="10" rx="2"/>
+        <rect x="260" y="202" width="12" height="10" rx="2"/>
+        <rect x="260" y="232" width="2" height="10" rx="1"/>
+      </g>
+      <g fill="#e6edf5" font-weight="700" text-anchor="end">
+        <text x="546" y="122">384 GB</text>
+        <text x="546" y="152">134 GB</text>
+        <text x="546" y="182">90 GB</text>
+        <text x="546" y="212">41 GB</text>
+        <text x="546" y="242">4 KB</text>
+      </g>
+      <g fill="#a9b6c6" text-anchor="end">
+        <text x="586" y="122">56%</text>
+        <text x="586" y="152">20%</text>
+        <text x="586" y="182">13%</text>
+        <text x="586" y="212">6%</text>
+        <text x="586" y="242">&lt;1%</text>
+      </g>
+      <path d="M18 132 h580 M18 162 h580 M18 192 h580 M18 222 h580" stroke="#243142"/>
+    </g>
+  </g>
+</svg>

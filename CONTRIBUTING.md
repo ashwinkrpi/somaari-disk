@@ -31,7 +31,7 @@ python3 -m venv --system-site-packages .venv   # Linux: PyGObject comes from apt
 .venv/bin/pre-commit install
 ```
 
-On Linux install the system packages from [INSTALL.md](INSTALL.md) first.
+On Linux install the system packages from [the guide](docs/GUIDE.md#from-source-on-linux) first.
 
 ## Before you open a pull request
 

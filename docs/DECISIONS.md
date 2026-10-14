@@ -99,6 +99,6 @@ Format: `- [date] decision - reason`
 - Windows: owner of a symlink/junction shows the target's owner (GetNamedSecurityInfoW follows links) - needs a handle opened with FILE_FLAG_OPEN_REPARSE_POINT.
 - Windows: MFT-resident small files counted as one cluster on disk - needs FSCTL queries; not worth it.
 - WebView2 bootstrapper in the installer (Inno Setup registry check + silent per-user run) - only if Windows 10 users report the missing-WebView2 message. Code signing: not for now (unsigned, 2026-10-08).
-- .deb for Python 3.10 distros (Ubuntu 22.04) and rpm/AppImage/Flatpak - not planned; INSTALL.md covers source installs.
+- .deb for Python 3.10 distros (Ubuntu 22.04) and rpm/AppImage/Flatpak - not planned; docs/GUIDE.md covers source installs.
 - Windows ARM64 build - no arm64 runner job yet; x64 build runs under emulation.
 

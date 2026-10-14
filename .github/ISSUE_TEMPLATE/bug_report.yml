@@ -42,5 +42,5 @@ body:
     id: log
     attributes:
       label: App log (last lines)
-      description: See "Where the app keeps its files" in INSTALL.md. The log replaces your home folder with ~; check it for other names before pasting.
+      description: See "Where the app keeps its files" in docs/GUIDE.md. The log replaces your home folder with ~; check it for other names before pasting.
       render: text
