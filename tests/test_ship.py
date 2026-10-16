@@ -50,7 +50,8 @@ def repo(tmp_path):
     (work / "src" / "demo_app").mkdir(parents=True)
     (work / "scripts").mkdir()
     (work / "pyproject.toml").write_text(
-        '[project]\nname = "demo-app"\nversion = "0.1.0"\n\n[tool.ruff]\ntarget-version = "py311"\n'
+        '[project]\nname = "demo-app"\ndynamic = ["version"]\n\n'
+        '[tool.ruff]\ntarget-version = "py311"\n'
     )
     (work / "src" / "demo_app" / "__init__.py").write_text('"""Demo."""\n\n__version__ = "0.1.0"\n')
     shutil.copy(SCRIPT, work / "scripts" / "ship.py")
@@ -79,12 +80,9 @@ def work_commit(repo: Path, name: str = "feature.txt") -> None:
     git(repo, "commit", "-qm", f"add {name}")
 
 
-def versions(repo: Path) -> tuple[str, str]:
-    toml = (repo / "pyproject.toml").read_text()
+def versions(repo: Path) -> str:
     init = (repo / "src" / "demo_app" / "__init__.py").read_text()
-    return toml.split('version = "')[1].split('"')[0], init.split('__version__ = "')[1].split('"')[
-        0
-    ]
+    return init.split('__version__ = "')[1].split('"')[0]
 
 
 @pytest.mark.parametrize(
@@ -116,16 +114,16 @@ def test_patch_bump_per_push(repo):
     res = run_ship(repo)
     assert res.returncode == 0, res.stderr
     assert "Pushed version 0.1.1 on main (no tag)" in res.stdout
-    assert versions(repo) == ("0.1.1", "0.1.1")
+    assert versions(repo) == "0.1.1"
     assert git(repo, "log", "-1", "--format=%s") == "Version 0.1.1"
     assert git(repo, "rev-parse", "HEAD") == git(repo, "rev-parse", "origin/main")  # pushed
     assert git(repo, "tag") == ""  # tags start release builds: never automatic
-    # the bump commit holds only the two version files
+    # the bump commit holds only the version file
     files = git(repo, "show", "--name-only", "--format=", "HEAD").splitlines()
-    assert sorted(files) == ["pyproject.toml", "src/demo_app/__init__.py"]
+    assert sorted(files) == ["src/demo_app/__init__.py"]
     work_commit(repo, "second.txt")
     assert run_ship(repo).returncode == 0
-    assert versions(repo) == ("0.1.2", "0.1.2")
+    assert versions(repo) == "0.1.2"
 
 
 BADGE = "[![Version](https://img.shields.io/badge/version-{}-61afef)](CHANGELOG.md)"
@@ -138,7 +136,7 @@ def test_readme_badge_follows_the_version(repo):
     assert run_ship(repo).returncode == 0
     assert BADGE.format("0.1.1") in (repo / "README.md").read_text()
     files = git(repo, "show", "--name-only", "--format=", "HEAD").splitlines()
-    assert sorted(files) == ["README.md", "pyproject.toml", "src/demo_app/__init__.py"]
+    assert sorted(files) == ["README.md", "src/demo_app/__init__.py"]
     assert run_ship(repo, "major").returncode == 0
     assert BADGE.format("1.0.0") in (repo / "README.md").read_text()
 
@@ -161,18 +159,18 @@ def test_this_repo_badge_matches_the_version():
 
 def test_major_and_exact_versions(repo):
     assert run_ship(repo, "major").returncode == 0  # explicit: bumps even with nothing else new
-    assert versions(repo) == ("1.0.0", "1.0.0")
+    assert versions(repo) == "1.0.0"
     assert run_ship(repo, "minor", "--no-push").returncode == 0
-    assert versions(repo) == ("1.1.0", "1.1.0")
+    assert versions(repo) == "1.1.0"
     assert git(repo, "rev-list", "--count", "origin/main..HEAD") == "1"  # committed, not pushed
     assert run_ship(repo, "3.0.0").returncode == 0
-    assert versions(repo) == ("3.0.0", "3.0.0")
+    assert versions(repo) == "3.0.0"
 
 
 def test_nothing_to_push_means_no_bump(repo):
     res = run_ship(repo)
     assert res.returncode == 0 and "Nothing to push" in res.stdout
-    assert versions(repo) == ("0.1.0", "0.1.0")
+    assert versions(repo) == "0.1.0"
 
 
 def test_uncommitted_changes_refused(repo):
@@ -180,7 +178,7 @@ def test_uncommitted_changes_refused(repo):
     (repo / "feature.txt").write_text("edited, not committed\n")
     res = run_ship(repo)
     assert res.returncode == 1 and "uncommitted changes" in res.stderr
-    assert versions(repo) == ("0.1.0", "0.1.0")
+    assert versions(repo) == "0.1.0"
 
 
 def test_failed_push_is_retried_without_a_second_bump(repo, tmp_path):
@@ -188,30 +186,32 @@ def test_failed_push_is_retried_without_a_second_bump(repo, tmp_path):
     git(repo, "remote", "set-url", "origin", str(tmp_path / "missing.git"))
     res = run_ship(repo)
     assert res.returncode == 1 and "push" in res.stderr
-    assert versions(repo) == ("0.1.1", "0.1.1")  # bumped and committed locally
+    assert versions(repo) == "0.1.1"  # bumped and committed locally
     git(repo, "remote", "set-url", "origin", str(tmp_path / "origin.git"))
     res = run_ship(repo)
     assert res.returncode == 0, res.stderr
-    assert versions(repo) == ("0.1.1", "0.1.1")  # reused, not 0.1.2
+    assert versions(repo) == "0.1.1"  # reused, not 0.1.2
     assert git(repo, "rev-parse", "HEAD") == git(repo, "rev-parse", "origin/main")
 
 
-def test_mismatched_versions_refused(repo):
+def test_static_pyproject_version_refused(repo):
+    # __init__.py is the single version source; a second one in pyproject.toml would drift
     work_commit(repo)
-    init = repo / "src" / "demo_app" / "__init__.py"
-    init.write_text('__version__ = "9.9.9"\n')
-    git(repo, "commit", "-qam", "drift")
+    toml = repo / "pyproject.toml"
+    toml.write_text(toml.read_text().replace('dynamic = ["version"]', 'version = "0.1.0"'))
+    git(repo, "commit", "-qam", "static version")
     res = run_ship(repo)
-    assert res.returncode == 1 and "says 0.1.0" in res.stderr
+    assert res.returncode == 1 and "pyproject.toml sets version" in res.stderr
+    assert versions(repo) == "0.1.0"
 
 
 def test_dry_run_changes_nothing(repo):
     work_commit(repo)
     res = run_ship(repo, "--dry-run")
     assert res.returncode == 0 and "Would bump 0.1.0 -> 0.1.1, then push main" in res.stdout
-    assert versions(repo) == ("0.1.0", "0.1.0")
+    assert versions(repo) == "0.1.0"
     assert git(repo, "rev-list", "--count", "origin/main..HEAD") == "1"
 
 
 def test_this_repo_versions_agree():
-    assert ship.read_version(ROOT)  # pyproject.toml and __init__.py match
+    assert ship.read_version(ROOT)  # __init__.py is the only version source

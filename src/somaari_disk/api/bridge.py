@@ -160,6 +160,7 @@ class Api:
         home: Path | None = None,
         prefs_path: Path | None = None,
         cache_dir: Path | None = None,
+        about: Callable[[], dict] | None = None,
         volume_interval: float = 3.0,
         progress_interval: float = 0.25,
         workers: int = 4,
@@ -168,6 +169,7 @@ class Api:
         self._emit_fn = emit
         self._home = home
         self._prefs_path = prefs_path
+        self._about = about
         self._progress_interval = progress_interval
         self._workers = workers
         self._lock = threading.Lock()  # guards scan state and the tree
@@ -210,6 +212,13 @@ class Api:
         self.cancel_scan()
         self._watcher.stop()
         return {"ok": True}
+
+    @_guard
+    def get_about(self) -> dict:
+        """About section: debug info, field labels, developer info, "Copy debug info" text."""
+        if self._about is None:
+            raise ApiError("unavailable", "About information isn't available.")
+        return {"ok": True, **self._about()}
 
     # ---- locations ----------------------------------------------------------
 

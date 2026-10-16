@@ -206,6 +206,29 @@ def test_file_details_and_trash_dialog():
     assert 'role", "alert"' in JS
 
 
+def test_about_dialog():
+    # reachable from the header; one modal with app, developer and debug sections
+    assert 'id="about-open"' in HTML and '<dialog id="about"' in HTML
+    for sid in ("about-app", "about-dev", "about-debug", "about-copy", "about-close"):
+        assert f'id="{sid}"' in HTML, sid
+    assert 'call("get_about")' in JS
+    assert '$("about-open").addEventListener("click", openAbout)' in JS
+    # labels in debug-fields.json order; lists joined like the copy text
+    assert "for (const f of fields) factRow(debug, f.label" in JS
+    assert '.join(", ") : "none"' in JS
+    # developer values are text or links that open outside the app window, never HTML
+    about = JS[JS.index("// ---- about") : JS.index("async function copyAbout")]
+    assert "innerHTML" not in about
+    assert 'a.target = "_blank"' in JS and 'a.rel = "noopener noreferrer"' in JS
+    # copy: clipboard API, then execCommand, then selected text with a hint
+    assert "navigator.clipboard.writeText(aboutText)" in JS
+    assert 'document.execCommand("copy")' in JS and "press Ctrl+C" in JS
+    # keyboard: arrows between the buttons, app shortcuts off while it is open
+    assert 'arrowNav(document.querySelector("#about .dialog-actions"))' in JS
+    assert '$("about").open) return;' in JS
+    assert HTML.index('id="about-copy"') < HTML.index('id="about-close"')
+
+
 def test_ui_has_no_os_paths():
     assert "/home/" not in JS and "C:\\" not in JS
 

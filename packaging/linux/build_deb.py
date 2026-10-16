@@ -8,6 +8,7 @@ Needs pip and dpkg-deb. Run from the repo root: python3 packaging/linux/build_de
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -19,7 +20,10 @@ ROOT = Path(__file__).resolve().parents[2]
 NAME = "somaari-disk"
 LIB = Path("usr", "lib", NAME)
 # pure-Python runtime deps vendored into LIB (psutil comes from apt: it has C extensions)
-VENDORED = ["pywebview", "bottle", "proxy_tools", "typing_extensions", "send2trash", "platformdirs"]
+VENDORED = [
+    *("pywebview", "bottle", "proxy_tools", "typing_extensions", "send2trash", "platformdirs"),
+    "somaari-common @ git+https://github.com/ashwinkrpi/somaari-common#subdirectory=python",
+]
 DEPENDS = [
     "python3 (>= 3.11)",
     "python3-gi",
@@ -67,7 +71,18 @@ find /{LIB.as_posix()} -name __pycache__ -type d -prune -exec rm -r {{}} + 2>/de
 
 
 def project() -> dict:
-    return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    """pyproject [project] plus the version from its single source, __init__.py."""
+    meta = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    init = (ROOT / "src" / "somaari_disk" / "__init__.py").read_text(encoding="utf-8")
+    return {**meta, "version": re.search(r'^__version__ = "([^"]+)"$', init, re.M).group(1)}
+
+
+def install(target: Path) -> None:
+    pip_install_vendored(target)
+    sys.path.insert(0, str(ROOT / "packaging"))
+    from stamp_build import stamp
+
+    stamp(target / "somaari_disk")
 
 
 def maintainer(meta: dict) -> str:
@@ -151,7 +166,7 @@ def main() -> int:
     build = ROOT / "build" / "deb"
     staging = build / f"{NAME}_{meta['version']}_all"
     shutil.rmtree(build, ignore_errors=True)
-    stage(staging, meta, pip_install_vendored)
+    stage(staging, meta, install)
     out = ROOT / "dist" / f"{NAME}_{meta['version']}_all.deb"
     out.parent.mkdir(exist_ok=True)
     cmd = ["dpkg-deb", "--root-owner-group", "-Zxz", "--build", str(staging), str(out)]

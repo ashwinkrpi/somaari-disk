@@ -10,6 +10,7 @@ Add a row here whenever a dependency or bundled asset is added. Permissive licen
 | psutil | Volume info | BSD-3-Clause | pip |
 | send2trash | Trash/Recycle Bin | BSD-3-Clause | pip |
 | platformdirs | Config/log dirs | MIT | pip |
+| somaari-common (somaari_about) | About section: debug info, developer info | MIT (same owner) | pip from GitHub; vendored in the .deb |
 | pythonnet, clr-loader (Windows) | pywebview WebView2 bridge | MIT | pip; Windows build |
 | cffi (Windows) | clr-loader dependency | MIT | pip; Windows build |
 | pycparser (Windows) | cffi dependency | BSD-3-Clause | pip; Windows build |
@@ -22,4 +23,4 @@ Add a row here whenever a dependency or bundled asset is added. Permissive licen
 
 Dev/build-only (not shipped): pytest, ruff, pre-commit, packaging (license test), build, PyInstaller (GPL-2.0 with exception; see docs/DECISIONS.md), Inno Setup compiler, dpkg-deb.
 
-The Linux .deb vendors pywebview, bottle, proxy-tools, typing_extensions, send2trash and platformdirs; psutil, PyGObject and WebKitGTK come from apt.
+The Linux .deb vendors pywebview, bottle, proxy-tools, typing_extensions, send2trash, platformdirs and somaari-common; psutil, PyGObject and WebKitGTK come from apt.

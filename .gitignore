@@ -44,3 +44,6 @@ design/screenshots-private/
 
 # Raw demo recordings (somaari-site/scripts/demo)
 docs/demo/
+
+# Build info stamped at package time (packaging/stamp_build.py)
+src/somaari_disk/_build_info.py

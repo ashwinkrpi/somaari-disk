@@ -815,6 +815,101 @@ function confirmTrash(item, items = null) {
   });
 }
 
+// ---- about ------------------------------------------------------------------
+
+// Developer fields come from somaari-common; any field not named here shows its raw key.
+const DEV_LABELS = {
+  name: "Developer", brand: "Brand", website: "Website", github: "GitHub",
+  email: "Email", license_note: "License", bug_report: "Report a bug",
+};
+
+function factRow(dl, label, value, prose = false) {
+  const dd = el("dd", prose ? "prose" : null);
+  if (value instanceof Node) dd.append(value);
+  else dd.textContent = value;
+  dl.append(el("dt", null, label), dd);
+}
+
+// http(s) and email values become links; target=_blank makes pywebview open the system browser.
+function devValue(key, value) {
+  const v = String(value);
+  const href = /^https?:\/\//.test(v) ? v : key === "email" && /^[^\s@]+@[^\s@]+$/.test(v) ? `mailto:${v}` : null;
+  if (!href) return v;
+  const a = el("a", null, v);
+  a.href = href;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  return a;
+}
+
+const debugValue = (v) => (Array.isArray(v) ? (v.length ? v.join(", ") : "none") : String(v));
+
+let aboutText = "";
+
+async function openAbout() {
+  const dlg = $("about");
+  const status = $("about-status");
+  for (const id of ["about-app", "about-dev", "about-debug"]) $(id).replaceChildren();
+  $("about-text").hidden = true;
+  $("about-copy").disabled = true;
+  status.textContent = "Loading…";
+  aboutText = "";
+  const back = document.activeElement;
+  dlg.addEventListener("close", () => back && back.isConnected && back.focus(), { once: true });
+  dlg.showModal();
+  $("about-close").focus();
+  const res = await call("get_about");
+  if (!res.ok) {
+    status.textContent = res.error.message;
+    return;
+  }
+  status.textContent = "";
+  const { info, fields, developer, text } = res;
+  const app = $("about-app");
+  factRow(app, "Name", info.app_name);
+  factRow(app, "Version", info.app_version);
+  factRow(app, "Build", `${info.build_commit} (${info.build_date})`);
+  const dev = $("about-dev");
+  for (const [key, value] of Object.entries(developer)) {
+    const v = devValue(key, value);
+    factRow(dev, DEV_LABELS[key] || key, v, typeof v === "string" && v.includes(" "));
+  }
+  const debug = $("about-debug");
+  for (const f of fields) factRow(debug, f.label, debugValue(info[f.key]));
+  aboutText = text;
+  $("about-copy").disabled = false;
+}
+
+// Clipboard API first, then execCommand; if both fail, show the text selected for Ctrl+C.
+async function copyAbout() {
+  const status = $("about-status");
+  const area = $("about-text");
+  area.value = aboutText;
+  try {
+    await navigator.clipboard.writeText(aboutText);
+    status.textContent = "Debug info copied.";
+    return;
+  } catch {
+    // not allowed in this webview; fall through
+  }
+  area.hidden = false;
+  area.focus();
+  area.select();
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch {
+    copied = false;
+  }
+  if (copied) {
+    area.hidden = true;
+    $("about-copy").focus();
+    status.textContent = "Debug info copied.";
+  } else {
+    status.textContent = "Couldn't copy automatically. The text is selected: press Ctrl+C.";
+  }
+}
+
 // After a move the totals update in place (no rescan); the next row gets the selection.
 async function trashItem(item) {
   const d = await call("get_details", item.segments);
@@ -1008,6 +1103,9 @@ function bindControls() {
   });
   arrowNav($("breadcrumb"));
   arrowNav(document.querySelector("#confirm .dialog-actions"));
+  arrowNav(document.querySelector("#about .dialog-actions"));
+  $("about-open").addEventListener("click", openAbout);
+  $("about-copy").addEventListener("click", copyAbout);
   $("theme").addEventListener("change", async (e) => {
     state.theme = e.target.value;
     applyTheme();
@@ -1018,7 +1116,7 @@ function bindControls() {
     if (api()) call("set_visible", !document.hidden);
   });
   document.addEventListener("keydown", (e) => {
-    if ($("confirm").open) return; // the modal dialog handles its own keys
+    if ($("confirm").open || $("about").open) return; // modal dialogs handle their own keys
     const inSelect = e.target instanceof HTMLSelectElement;
     if ((e.altKey && e.key === "ArrowUp") || (e.key === "Backspace" && !inSelect)) {
       e.preventDefault();

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import json
 import logging
 import os
@@ -45,19 +46,23 @@ def window_icon(platform: str = sys.platform) -> str | None:
 def make_api(demo: bool = False) -> Api:
     from platformdirs import user_cache_path, user_config_path
 
+    from .about import about_data
     from .logsetup import setup_logging
 
     config = user_config_path(APP_NAME)
-    setup_logging(config / "logs", Path.home())
+    logs = config / "logs"
+    setup_logging(logs, Path.home())
     prefs = config / "prefs.json"
+    cache = user_cache_path(APP_NAME) / "scans"
+    about = functools.partial(about_data, APP_NAME, data_dir=cache, config_dir=config, log_dir=logs)
     if demo:
         from .platform.demo import demo_platform
 
-        return Api(demo_platform(), prefs_path=prefs)  # demo scans are never cached
+        # demo scans are never cached
+        return Api(demo_platform(), prefs_path=prefs, about=about)
     from .platform import get_platform
 
-    cache = user_cache_path(APP_NAME) / "scans"
-    return Api(get_platform(), home=Path.home(), prefs_path=prefs, cache_dir=cache)
+    return Api(get_platform(), home=Path.home(), prefs_path=prefs, cache_dir=cache, about=about)
 
 
 def window_state_path() -> Path:

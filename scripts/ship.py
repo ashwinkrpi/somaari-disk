@@ -8,13 +8,13 @@
     scripts/ship.py major --no-push  # bump and commit only
     scripts/ship.py --dry-run        # show what would happen
 
-The version lives in pyproject.toml ([project] version) and src/<package>/__init__.py
-(__version__); both are updated together, and so is a shields.io version badge in README.md
-(`img.shields.io/badge/version-X.Y.Z-…`) if there is one. No tag is created: tags (vX.Y.Z)
-start a release build, so tag by hand when you want a release. Commit your work first; the bump
-commit only contains the version files (and README.md for the badge). If a push fails, running
-this again reuses the bump commit instead of bumping twice. Standard library only; no sudo, no
-network except `git push`.
+The version lives only in src/<package>/__init__.py (__version__); pyproject.toml reads it
+(dynamic = ["version"], [tool.hatch.version]). A shields.io version badge in README.md
+(`img.shields.io/badge/version-X.Y.Z-…`) is updated too if there is one. No tag is created:
+tags (vX.Y.Z) start a release build, so tag by hand when you want a release. Commit your work
+first; the bump commit only contains the version files (and README.md for the badge). If a push
+fails, running this again reuses the bump commit instead of bumping twice. Standard library
+only; no sudo, no network except `git push`.
 """
 
 from __future__ import annotations
@@ -57,24 +57,19 @@ def bumped(version: str, part: str) -> str:
     return part
 
 
-def version_files(root: Path) -> tuple[Path, Path]:
-    pyproject = root / "pyproject.toml"
-    name = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["name"]
-    init = root / "src" / name.replace("-", "_") / "__init__.py"
-    return pyproject, init
+def version_file(root: Path) -> Path:
+    project = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))["project"]
+    if "version" in project:
+        raise ShipError('pyproject.toml sets version: use dynamic = ["version"] instead')
+    return root / "src" / project["name"].replace("-", "_") / "__init__.py"
 
 
 def read_version(root: Path) -> str:
-    pyproject, init = version_files(root)
-    project = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
+    init = version_file(root)
     m = re.search(r'^__version__ = "([^"]+)"$', init.read_text(encoding="utf-8"), re.M)
     if not m:
         raise ShipError(f"no __version__ in {init.relative_to(root)}")
-    if m.group(1) != project:
-        raise ShipError(
-            f"pyproject.toml says {project}, {init.relative_to(root)} says {m.group(1)}"
-        )
-    return project
+    return m.group(1)
 
 
 def _replace_once(path: Path, pattern: str, new: str) -> None:
@@ -86,8 +81,7 @@ def _replace_once(path: Path, pattern: str, new: str) -> None:
 
 
 def write_version(root: Path, old: str, new: str) -> None:
-    pyproject, init = version_files(root)
-    _replace_once(pyproject, rf'^version = "{re.escape(old)}"$', f'version = "{new}"')
+    init = version_file(root)
     _replace_once(init, rf'^__version__ = "{re.escape(old)}"$', f'__version__ = "{new}"')
 
 
@@ -138,7 +132,7 @@ def ship(root: Path, part: str = "patch", push: bool = True, dry_run: bool = Fal
         return "Would " + ", then ".join(steps) + "."
     if not reuse:
         write_version(root, current, new)
-        changed = [*version_files(root), write_badge(root, new)]
+        changed = [version_file(root), write_badge(root, new)]
         files = [str(p.relative_to(root)) for p in changed if p is not None]
         git(root, "commit", "-m", f"Version {new}", "--", *files)
     if push:

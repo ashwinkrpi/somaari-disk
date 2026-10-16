@@ -33,6 +33,9 @@
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.7 6.3A8 8 0 1 0 20 12h-2a6 6 0 1 1-1.8-4.2L13 11h7V4z"/></svg>
         <span id="rescan-label">Rescan</span>
       </button>
+      <button id="about-open" class="icon-btn" type="button" title="About" aria-label="About" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 15h-2v-6h2zm0-8h-2V7h2z"/></svg>
+      </button>
     </div>
     <nav class="crumbs" aria-label="Breadcrumb">
       <ol id="breadcrumb"></ol>
@@ -76,6 +79,25 @@
       <div class="dialog-actions">
         <button id="confirm-cancel" class="action" value="cancel">Cancel</button>
         <button id="confirm-ok" class="action danger" value="trash">Move to Trash</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="about" class="dialog dialog-wide" aria-labelledby="about-title">
+    <form method="dialog">
+      <h2 id="about-title">About Somaari Disk</h2>
+      <div id="about-body" class="about-body" tabindex="0" aria-label="About details">
+        <h3>App</h3>
+        <dl id="about-app" class="facts"></dl>
+        <h3>Developer</h3>
+        <dl id="about-dev" class="facts"></dl>
+        <h3>Debug info</h3>
+        <dl id="about-debug" class="facts"></dl>
+      </div>
+      <textarea id="about-text" class="about-text" readonly aria-label="Debug info text" hidden></textarea>
+      <p id="about-status" class="dialog-note" role="status"></p>
+      <div class="dialog-actions">
+        <button id="about-copy" class="action" type="button" disabled>Copy debug info</button>
+        <button id="about-close" class="action" value="close">Close</button>
       </div>
     </form>
   </dialog>

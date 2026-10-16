@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "somaari-disk"
-version = "0.1.8"
+dynamic = ["version"]
 description = "Desktop disk usage analyzer"
 license = "MIT"
 license-files = ["LICENSE", "THIRD-PARTY-NOTICES.md"]
@@ -16,6 +16,7 @@ dependencies = [
     "platformdirs>=4",
     "psutil>=5.9",
     "send2trash>=1.8",
+    "somaari-common @ git+https://github.com/ashwinkrpi/somaari-common#subdirectory=python",
 ]
 
 [project.urls]
@@ -27,6 +28,12 @@ dev = ["pytest>=8", "ruff>=0.6", "pre-commit>=3", "packaging>=23"]
 
 [project.scripts]
 somaari-disk = "somaari_disk.__main__:main"
+
+[tool.hatch.version]
+path = "src/somaari_disk/__init__.py"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/somaari_disk"]

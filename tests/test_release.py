@@ -82,7 +82,9 @@ def test_runtime_dependencies_are_permissive_and_listed():
 
 
 def test_versions_agree():
-    assert PROJECT["version"] == somaari_disk.__version__
+    # __init__.py is the single version source; pyproject.toml reads it via hatch
+    assert "version" not in PROJECT and PROJECT["dynamic"] == ["version"]
+    assert somaari_disk.__version__
     assert PROJECT["license"] == "MIT"
     assert (ROOT / "LICENSE").read_text(encoding="utf-8").startswith("MIT License")
 
@@ -152,7 +154,7 @@ def _fake_install(target: Path) -> None:
 def test_deb_staging_layout(tmp_path):
     build_deb = _load_build_deb()
     staging = tmp_path / "pkg"
-    build_deb.stage(staging, PROJECT, _fake_install)
+    build_deb.stage(staging, build_deb.project(), _fake_install)
 
     lib = staging / "usr" / "lib" / "somaari-disk"
     assert (lib / "somaari_disk" / "__init__.py").is_file()
@@ -179,7 +181,7 @@ def test_deb_staging_layout(tmp_path):
         if ": " in line and not line.startswith(" ")
     )
     assert control["Package"] == "somaari-disk"
-    assert control["Version"] == PROJECT["version"]
+    assert control["Version"] == somaari_disk.__version__
     assert control["Architecture"] == "all"
     assert "python3 (>= 3.11)" in control["Depends"]
     assert "gir1.2-webkit2-4.1" in control["Depends"]

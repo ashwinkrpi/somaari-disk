@@ -76,6 +76,11 @@ Format: `- [date] decision - reason`
 - [2026-10-11] Window size/position/maximized saved to window.json in the config dir, written once after the window closes (no polling). On start it is checked against the current screens (pure core/window_state.py): too little on any screen or title bar out of reach -> default size, centred; size capped to the screen. Position skipped on Wayland. Changes within 0.5 s before a "maximized" event are undone because maximizing fires resize/move first on some backends; normal size kept while maximized. `--reset-window` deletes the file - recovery when a monitor change leaves the window unreachable
 - [2026-10-12] Scan cache and log folders are made 0700 on POSIX, also when they already exist (privdir.make_private_dir; chmod failure ignored). Windows left to AppData's per-user ACLs. UI has a CSP: default-src 'none', self only, no inline script/style; script-src keeps 'unsafe-eval' because pywebview builds js_api stubs with new Function. connect-src 'self' because pywebview may serve the UI from a loopback server.
 
+- [2026-10-16] About data comes from somaari-common (`somaari_about`, MIT, same owner), installed from GitHub - one debug-info/developer format shared by all somaari apps; pure Python, no runtime network. Tracks `main`, never pinned (ABOUT_SPEC.md: somaari-common is unversioned); installs need network once.
+- [2026-10-16] Version lives only in `src/somaari_disk/__init__.py`; pyproject uses hatch dynamic version - one place to bump, ship.py and build_deb.py read it there.
+- [2026-10-16] Build commit/date stamped into a git-ignored `_build_info.py` at package time (packaging/stamp_build.py, honours SOURCE_DATE_EPOCH) - About shows the exact build; running from source shows dev/unknown.
+- [2026-10-16] About links use `target=_blank`: pywebview opens them in the system browser, so no open-URL api method or OS code. Copy debug info tries the Clipboard API, then execCommand, then shows the text selected for Ctrl+C - WebKitGTK and WebView2 differ in clipboard permissions.
+
 ## Before going public (owner decisions)
 - Version: v0.1.3 is the first published release (2026-10-08); v0.1.0 was tagged but never published (draft deleted 2026-10-08, tag kept).
 - [2026-10-08] Copyright holder name stays "Ashwin KR" in LICENSE, pyproject authors and the .deb Maintainer (with the GitHub noreply email) - same as somaari-ai.
@@ -101,4 +106,3 @@ Format: `- [date] decision - reason`
 - WebView2 bootstrapper in the installer (Inno Setup registry check + silent per-user run) - only if Windows 10 users report the missing-WebView2 message. Code signing: not for now (unsigned, 2026-10-08).
 - .deb for Python 3.10 distros (Ubuntu 22.04) and rpm/AppImage/Flatpak - not planned; docs/GUIDE.md covers source installs.
 - Windows ARM64 build - no arm64 runner job yet; x64 build runs under emulation.
-
