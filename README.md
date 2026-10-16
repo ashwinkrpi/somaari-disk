@@ -194,6 +194,12 @@ On Linux install the system packages first ([From source on Linux](docs/GUIDE.md
 See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
 [docs/TESTING.md](docs/TESTING.md). Screenshots come from `--demo` only, never real files.
 
+## 🤝 Contributing
+
+This is a personal project and doesn't accept pull requests. You're welcome to fork it and adapt
+it for yourself, and bug reports in [Issues](https://github.com/ashwinkrpi/somaari-disk/issues)
+are appreciated. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## License
 
 MIT, see [LICENSE](LICENSE). Bundled fonts and dependencies: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).

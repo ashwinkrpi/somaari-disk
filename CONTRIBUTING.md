@@ -1,7 +1,10 @@
 # Contributing
 
-Thanks for helping. Bug reports, tests on new hardware and small focused pull requests are
-the most useful.
+This is a personal project and doesn't accept pull requests. You're welcome to fork it and
+adapt it for yourself under the [MIT License](LICENSE). Bug reports and results from testing on
+new hardware are very welcome in [Issues](https://github.com/ashwinkrpi/somaari-disk/issues).
+
+The rest of this page is for working on your own copy.
 
 ## Ground rules
 
@@ -33,7 +36,7 @@ python3 -m venv --system-site-packages .venv   # Linux: PyGObject comes from apt
 
 On Linux install the system packages from [the guide](docs/GUIDE.md#from-source-on-linux) first.
 
-## Before you open a pull request
+## Before you commit
 
 - Add or update tests for every change. Tests never scan real drives or open windows.
 - `pytest -q`, `ruff check .` and `ruff format .` pass.
@@ -42,5 +45,3 @@ On Linux install the system packages from [the guide](docs/GUIDE.md#from-source-
 - CI must stay green on Ubuntu and Windows.
 
 Manual checks for UI or platform changes: [docs/TESTING.md](docs/TESTING.md).
-
-By contributing you agree your work is released under the [MIT License](LICENSE).

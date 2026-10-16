@@ -42,3 +42,4 @@
 - [2026-10-14] docs/GUIDE.md (install, configuration, using the app with demo screenshots, troubleshooting) replaces INSTALL.md; README restyled (banner, badges, features, diagram, privacy, safety) and points to the guide; new demo screenshots - one place for user docs, README matches somaari-trip
 - [2026-10-16] About backend: api.get_about via somaari-common, build commit/date stamped in .deb/Windows builds, single version source in __init__.py - shared debug info across somaari apps, one place to bump the version
 - [2026-10-16] About dialog (header info button): app, build, developer info and debug fields, Copy debug info, links open in the system browser - ABOUT_SPEC.md; bug reports carry the same debug block as other somaari apps
+- [2026-10-16] README Contributing section, CONTRIBUTING.md reworded: no pull requests, forks and bug reports welcome; GitHub PR creation set to collaborators only - personal project, same policy as somaari-trip
