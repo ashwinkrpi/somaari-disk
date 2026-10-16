@@ -220,3 +220,10 @@ def test_one_display_name_everywhere():
     assert title in app.WEBVIEW2_MISSING
     assert f"Name={title}\n" in _load_build_deb().DESKTOP
     assert f"AppName={title}\n" in (ROOT / "packaging/windows/installer.iss").read_text("utf-8")
+
+
+def test_release_workflow_reads_the_single_version_source():
+    # pyproject.toml has no version (dynamic); reading it there gave the installer an empty one
+    wf = (ROOT / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
+    assert "['project']['version']" not in wf
+    assert wf.count("ship.read_version(pathlib.Path('.'))") == 2
