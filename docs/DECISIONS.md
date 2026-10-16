@@ -90,6 +90,7 @@ Format: `- [date] decision - reason`
 - History audit 2026-10-04: no secrets, hostnames, IPs or personal paths in any commit; only the LICENSE name and the noreply author email. No rewrite needed. Re-checked 2026-10-08 after the filter-repo rewrite: still clean (only the `/home/someone` test sample path).
 - [2026-10-08] Dev-only files kept local, not in the public repo: CLAUDE.md, .claude/, docs/BUILD-PLAN.md, design/boards/ (untracked + gitignored), and removed from all past commits and tags with git filter-repo (force-pushed 2026-10-08).
 - [2026-10-08] Dependabot (`.github/dependabot.yml`): pip + github-actions, monthly - keeps deps and pinned actions current without noise; PRs still need CI green and a license check (THIRD-PARTY-NOTICES).
+- [2026-10-16] Dependabot version updates removed (`.github/dependabot.yml` deleted) - personal project that takes no pull requests; pip deps are open `>=` ranges with no lock file, so only GitHub Actions bumps ever came through; update actions by hand when GitHub warns. Dependabot security alerts (repo setting) stay on.
 
 ## Deferred
 - lsblk mount-point matching for LVM/LUKS mappers - needs that hardware; UUID ids done in Stage 6.
