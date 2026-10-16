@@ -83,7 +83,7 @@ Format: `- [date] decision - reason`
 
 ## Before going public (owner decisions)
 - Version: v0.1.3 is the first published release (2026-10-08); v0.1.0 was tagged but never published (draft deleted 2026-10-08, tag kept).
-- [2026-10-08] Copyright holder name stays "Ashwin KR" in LICENSE, pyproject authors and the .deb Maintainer (with the GitHub noreply email) - same as somaari-ai.
+- [2026-10-08] Copyright holder name is "Ashwin Koppam Raghavendra" (full name since 2026-10-16) in LICENSE, pyproject authors and the .deb Maintainer (with the GitHub noreply email) - same as somaari-ai.
 - [2026-10-08] Windows installer and zip ship unsigned - code signing costs money each year for a hobby release; README tells users how to get past the SmartScreen warning (More info, Run anyway) and to check SHA256SUMS.
 - [2026-10-08] WebView2 is not bundled; the app keeps its in-app "WebView2 missing" message and README/INSTALL tell Windows 10 users to install the Evergreen Bootstrapper - Windows 11 and updated Windows 10 already have it; bundling would add a non-permissive redistributable, a network step at install and an untestable path.
 - Enable GitHub private vulnerability reporting (SECURITY.md points to it) and issue labels bug/enhancement.
