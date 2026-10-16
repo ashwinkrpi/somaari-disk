@@ -81,7 +81,7 @@ def work_commit(repo: Path, name: str = "feature.txt") -> None:
 
 
 def versions(repo: Path) -> str:
-    init = (repo / "src" / "demo_app" / "__init__.py").read_text()
+    init = (repo / "src" / "demo_app" / "__init__.py").read_text(encoding="utf-8")
     return init.split('__version__ = "')[1].split('"')[0]
 
 
@@ -134,11 +134,11 @@ def test_readme_badge_follows_the_version(repo):
     git(repo, "add", "README.md")
     git(repo, "commit", "-qm", "readme")
     assert run_ship(repo).returncode == 0
-    assert BADGE.format("0.1.1") in (repo / "README.md").read_text()
+    assert BADGE.format("0.1.1") in (repo / "README.md").read_text(encoding="utf-8")
     files = git(repo, "show", "--name-only", "--format=", "HEAD").splitlines()
     assert sorted(files) == ["README.md", "src/demo_app/__init__.py"]
     assert run_ship(repo, "major").returncode == 0
-    assert BADGE.format("1.0.0") in (repo / "README.md").read_text()
+    assert BADGE.format("1.0.0") in (repo / "README.md").read_text(encoding="utf-8")
 
 
 def test_readme_without_badge_is_left_alone(repo):
@@ -146,12 +146,12 @@ def test_readme_without_badge_is_left_alone(repo):
     git(repo, "add", "README.md")
     git(repo, "commit", "-qm", "readme")
     assert run_ship(repo).returncode == 0
-    assert (repo / "README.md").read_text() == "# Demo, version 0.1.0\n"
+    assert (repo / "README.md").read_text(encoding="utf-8") == "# Demo, version 0.1.0\n"
     assert "README.md" not in git(repo, "show", "--name-only", "--format=", "HEAD")
 
 
 def test_this_repo_badge_matches_the_version():
-    readme = (ROOT / "README.md").read_text()
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
     if not ship.BADGE.search(readme):
         pytest.skip("this repo's README has no version badge")
     assert BADGE.format(ship.read_version(ROOT)) in readme
@@ -198,7 +198,9 @@ def test_static_pyproject_version_refused(repo):
     # __init__.py is the single version source; a second one in pyproject.toml would drift
     work_commit(repo)
     toml = repo / "pyproject.toml"
-    toml.write_text(toml.read_text().replace('dynamic = ["version"]', 'version = "0.1.0"'))
+    toml.write_text(
+        toml.read_text(encoding="utf-8").replace('dynamic = ["version"]', 'version = "0.1.0"')
+    )
     git(repo, "commit", "-qam", "static version")
     res = run_ship(repo)
     assert res.returncode == 1 and "pyproject.toml sets version" in res.stderr
