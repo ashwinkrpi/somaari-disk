@@ -81,6 +81,8 @@ Format: `- [date] decision - reason`
 - [2026-10-16] Build commit/date stamped into a git-ignored `_build_info.py` at package time (packaging/stamp_build.py, honours SOURCE_DATE_EPOCH) - About shows the exact build; running from source shows dev/unknown.
 - [2026-10-16] About links use `target=_blank`: pywebview opens them in the system browser, so no open-URL api method or OS code. Copy debug info tries the Clipboard API, then execCommand, then shows the text selected for Ctrl+C - WebKitGTK and WebView2 differ in clipboard permissions.
 
+- [2026-10-17] README badge shows the latest published GitHub release (shields `github/v/release`), not `__version__`; ship.py no longer rewrites it. `ship.py --release` tags vX.Y.Z and pushes the tag (draft release), publish with `gh release edit` - `__version__` moves on every push and tags were made by hand, so the badge, tags and releases drifted apart (v0.1.13 tagged, no release; badge 0.1.14, latest release 0.1.11).
+
 ## Before going public (owner decisions)
 - Version: v0.1.3 is the first published release (2026-10-08); v0.1.0 was tagged but never published (draft deleted 2026-10-08, tag kept).
 - [2026-10-08] Copyright holder name is "Ashwin Koppam Raghavendra" (full name since 2026-10-16) in LICENSE, pyproject authors and the .deb Maintainer (with the GitHub noreply email) - same as somaari-ai.

@@ -1,4 +1,4 @@
-"""scripts/ship.py: patch bump per push, minor/major/exact on request, never a tag.
+"""scripts/ship.py: patch bump per push, minor/major/exact on request, tags only with --release.
 
 Runs against a throwaway git repo with a local bare "origin" in tmp_path: no network, and
 this checkout is never touched.
@@ -129,32 +129,55 @@ def test_patch_bump_per_push(repo):
 BADGE = "[![Version](https://img.shields.io/badge/version-{}-61afef)](CHANGELOG.md)"
 
 
-def test_readme_badge_follows_the_version(repo):
-    (repo / "README.md").write_text("# Demo\n\n" + BADGE.format("0.0.9") + "\n")  # stale badge
+def test_readme_is_never_touched(repo):
+    # the README badge shows the latest GitHub release (shields reads it), not __version__
+    text = "# Demo, version 0.1.0\n\n" + BADGE.format("0.0.9") + "\n"
+    (repo / "README.md").write_text(text)
     git(repo, "add", "README.md")
     git(repo, "commit", "-qm", "readme")
     assert run_ship(repo).returncode == 0
-    assert BADGE.format("0.1.1") in (repo / "README.md").read_text(encoding="utf-8")
-    files = git(repo, "show", "--name-only", "--format=", "HEAD").splitlines()
-    assert sorted(files) == ["README.md", "src/demo_app/__init__.py"]
-    assert run_ship(repo, "major").returncode == 0
-    assert BADGE.format("1.0.0") in (repo / "README.md").read_text(encoding="utf-8")
-
-
-def test_readme_without_badge_is_left_alone(repo):
-    (repo / "README.md").write_text("# Demo, version 0.1.0\n")
-    git(repo, "add", "README.md")
-    git(repo, "commit", "-qm", "readme")
-    assert run_ship(repo).returncode == 0
-    assert (repo / "README.md").read_text(encoding="utf-8") == "# Demo, version 0.1.0\n"
+    assert (repo / "README.md").read_text(encoding="utf-8") == text
     assert "README.md" not in git(repo, "show", "--name-only", "--format=", "HEAD")
 
 
-def test_this_repo_badge_matches_the_version():
+def test_this_repo_readme_badge_follows_releases():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    if not ship.BADGE.search(readme):
-        pytest.skip("this repo's README has no version badge")
-    assert BADGE.format(ship.read_version(ROOT)) in readme
+    assert "img.shields.io/badge/version-" not in readme  # a static badge would go stale
+    assert "img.shields.io/github/v/release/" in readme
+
+
+def test_release_tags_and_pushes_the_bump(repo):
+    work_commit(repo)
+    res = run_ship(repo, "--release")
+    assert res.returncode == 0, res.stderr
+    assert "gh release edit v0.1.1 --draft=false" in res.stdout
+    assert versions(repo) == "0.1.1"
+    assert git(repo, "tag") == "v0.1.1"
+    assert git(repo, "rev-parse", "v0.1.1^{commit}") == git(repo, "rev-parse", "HEAD")
+    assert git(repo, "ls-remote", "--tags", "origin", "v0.1.1")
+
+
+def test_release_with_nothing_new_tags_the_current_version(repo):
+    assert run_ship(repo, "--release").returncode == 0
+    assert versions(repo) == "0.1.0"  # no bump
+    assert git(repo, "tag") == "v0.1.0"
+    res = run_ship(repo, "--release")  # already tagged
+    assert res.returncode == 1 and "tag v0.1.0 already exists" in res.stderr
+
+
+def test_release_needs_a_push(repo):
+    work_commit(repo)
+    res = run_ship(repo, "--release", "--no-push")
+    assert res.returncode == 1 and "--release needs a push" in res.stderr
+    assert versions(repo) == "0.1.0"
+
+
+def test_release_dry_run(repo):
+    work_commit(repo)
+    res = run_ship(repo, "--release", "--dry-run")
+    assert res.returncode == 0
+    assert "Would bump 0.1.0 -> 0.1.1, then push main, then tag v0.1.1" in res.stdout
+    assert git(repo, "tag") == ""
 
 
 def test_major_and_exact_versions(repo):

@@ -6,15 +6,15 @@
     scripts/ship.py major            # 0.2.3 -> 1.0.0, then push
     scripts/ship.py 2.0.0            # set an exact version, then push
     scripts/ship.py major --no-push  # bump and commit only
+    scripts/ship.py --release        # bump, push, then tag vX.Y.Z and push the tag
     scripts/ship.py --dry-run        # show what would happen
 
 The version lives only in src/<package>/__init__.py (__version__); pyproject.toml reads it
-(dynamic = ["version"], [tool.hatch.version]). A shields.io version badge in README.md
-(`img.shields.io/badge/version-X.Y.Z-…`) is updated too if there is one. No tag is created:
-tags (vX.Y.Z) start a release build, so tag by hand when you want a release. Commit your work
-first; the bump commit only contains the version files (and README.md for the badge). If a push
-fails, running this again reuses the bump commit instead of bumping twice. Standard library
-only; no sudo, no network except `git push`.
+(dynamic = ["version"], [tool.hatch.version]). Plain pushes create no tag. --release also tags
+the pushed commit vX.Y.Z, which starts the release build (a draft GitHub release); with nothing
+new to push it tags the current version if that tag is missing. Commit your work first; the bump
+commit only contains the version file. If a push fails, running this again reuses the bump
+commit instead of bumping twice. Standard library only; no sudo, no network except `git push`.
 """
 
 from __future__ import annotations
@@ -28,8 +28,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SEMVER = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
-# The README badge: whatever version it shows (it may be stale) is replaced.
-BADGE = re.compile(r"(img\.shields\.io/badge/version-)\d+\.\d+\.\d+(-)")
 PARTS = ("patch", "minor", "major")
 
 
@@ -85,19 +83,6 @@ def write_version(root: Path, old: str, new: str) -> None:
     _replace_once(init, rf'^__version__ = "{re.escape(old)}"$', f'__version__ = "{new}"')
 
 
-def write_badge(root: Path, new: str) -> Path | None:
-    """Set the README version badge to `new`; the README if it changed (no badge: None)."""
-    readme = root / "README.md"
-    if not readme.is_file():
-        return None
-    text = readme.read_text(encoding="utf-8")
-    out = BADGE.sub(lambda m: f"{m.group(1)}{new}{m.group(2)}", text, count=1)
-    if out == text:
-        return None
-    readme.write_text(out, encoding="utf-8")
-    return readme
-
-
 def git(root: Path, *args: str, check: bool = True) -> str:
     res = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)  # noqa: S603, S607
     if check and res.returncode != 0:
@@ -105,8 +90,19 @@ def git(root: Path, *args: str, check: bool = True) -> str:
     return res.stdout.strip() if res.returncode == 0 else ""
 
 
-def ship(root: Path, part: str = "patch", push: bool = True, dry_run: bool = False) -> str:
-    """Bump (unless an unpushed bump commit is already on top), commit, push. Returns a summary."""
+def ship(
+    root: Path,
+    part: str = "patch",
+    push: bool = True,
+    dry_run: bool = False,
+    release: bool = False,
+) -> str:
+    """Bump (unless an unpushed bump commit is already on top), commit, push, tag if `release`.
+
+    Returns a summary.
+    """
+    if release and not push:
+        raise ShipError("--release needs a push: drop --no-push")
     if git(root, "status", "--porcelain", "--untracked-files=no"):
         raise ShipError(
             "uncommitted changes: commit them first (the bump commit holds only the version)"
@@ -120,23 +116,39 @@ def ship(root: Path, part: str = "patch", push: bool = True, dry_run: bool = Fal
     # A failed push left our bump on top: push it as is (an explicit minor/major still bumps).
     last = git(root, "log", "-1", "--format=%s")
     reuse = part == "patch" and bool(pending) and last == f"Version {current}"
-    if pending == 0 and part == "patch" and push:
+    # Nothing new: a release tags the version already pushed, a plain push does nothing.
+    tag_only = pending == 0 and part == "patch" and push
+    if tag_only and not release:
         return "Nothing to push: no new commits, so no version bump."
-    new = current if reuse else bumped(current, part)
-    steps = [
-        f"reuse the unpushed bump commit for {current}" if reuse else f"bump {current} -> {new}"
-    ]
-    if push:
-        steps.append(f"push {branch}" + ("" if upstream else " (and set its upstream to origin)"))
+    new = current if reuse or tag_only else bumped(current, part)
+    tag = f"v{new}"
+    if release and git(root, "tag", "--list", tag):
+        raise ShipError(f"tag {tag} already exists")
+    steps = []
+    if not tag_only:
+        steps.append(
+            f"reuse the unpushed bump commit for {current}" if reuse else f"bump {current} -> {new}"
+        )
+        if push:
+            steps.append(
+                f"push {branch}" + ("" if upstream else " (and set its upstream to origin)")
+            )
+    if release:
+        steps.append(f"tag {tag} and push the tag")
     if dry_run:
         return "Would " + ", then ".join(steps) + "."
-    if not reuse:
+    if not reuse and not tag_only:
         write_version(root, current, new)
-        changed = [version_file(root), write_badge(root, new)]
-        files = [str(p.relative_to(root)) for p in changed if p is not None]
-        git(root, "commit", "-m", f"Version {new}", "--", *files)
-    if push:
+        git(root, "commit", "-m", f"Version {new}", "--", str(version_file(root).relative_to(root)))
+    if push and not tag_only:
         git(root, "push", *([] if upstream else ["-u"]), "origin", branch)
+    if release:
+        git(root, "tag", tag)
+        git(root, "push", "origin", tag)
+        return (
+            f"Pushed version {new} on {branch} and tag {tag}. When the Release build finishes,"
+            f" check the draft and publish it: gh release edit {tag} --draft=false"
+        )
     return ("Pushed" if push else "Committed") + f" version {new} on {branch} (no tag)."
 
 
@@ -147,11 +159,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--no-push", action="store_true", help="bump and commit only")
     parser.add_argument(
+        "--release", action="store_true", help="also tag vX.Y.Z and push the tag (release build)"
+    )
+    parser.add_argument(
         "--dry-run", action="store_true", help="show what would happen, change nothing"
     )
     args = parser.parse_args(argv)
     try:
-        print(ship(ROOT, args.part, push=not args.no_push, dry_run=args.dry_run))
+        print(ship(ROOT, args.part, not args.no_push, args.dry_run, args.release))
     except ShipError as e:
         print(f"ship: {e}", file=sys.stderr)
         return 1

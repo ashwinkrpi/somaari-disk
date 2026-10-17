@@ -45,3 +45,4 @@
 - [2026-10-16] README Contributing section, CONTRIBUTING.md reworded: no pull requests, forks and bug reports welcome; GitHub PR creation set to collaborators only - personal project, same policy as somaari-trip
 - [2026-10-16] Removed .github/dependabot.yml - no PRs on a personal project; only Actions bumps ever arrived, update those by hand
 - [2026-10-17] EntryInfo is a NamedTuple instead of a frozen dataclass - one is built per scanned entry; warm scan of /usr on the Pi 8-11% faster, same results
+- [2026-10-17] README badge reads the latest GitHub release; ship.py `--release` tags vX.Y.Z and pushes the tag, no longer edits README - app version, badge, tags and releases had drifted apart
