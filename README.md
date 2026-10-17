@@ -11,7 +11,7 @@ exFAT/NTFS/FAT32, read-only mounts.
 
 <br>
 
-[![Version](https://img.shields.io/badge/version-0.1.13-61afef)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.14-61afef)](CHANGELOG.md)
 [![Python](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![pywebview](https://img.shields.io/badge/pywebview-GTK%20%7C%20WebView2-4C8DDB)](https://pywebview.flowrl.com/)
 [![Linux](https://img.shields.io/badge/Linux-arm64%20%7C%20x86--64-FCC624?logo=linux&logoColor=black)](docs/GUIDE.md#debian-ubuntu-raspberry-pi-os-deb)
