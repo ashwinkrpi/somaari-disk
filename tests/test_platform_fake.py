@@ -15,6 +15,7 @@ from somaari_disk.core.models import Volume
 from somaari_disk.core.scanner import Scanner
 from somaari_disk.core.volumes import VolumeWatcher
 from somaari_disk.platform import get_platform
+from somaari_disk.platform.base import EntryInfo, Kind
 from somaari_disk.platform.fake import FakeDir, FakeFile, FakePlatform
 
 ROOT = Path("fake-root")
@@ -109,6 +110,14 @@ def test_folder_error_is_not_volume_lost():
     assert r.dirs == 4
 
 
+def test_entry_info_is_immutable():
+    info = EntryInfo("a.txt", Kind.FILE, 10, 4096, 1, 7)
+    with pytest.raises(AttributeError):
+        info.size = 0  # type: ignore[misc]
+    assert info._replace(dev=99).dev == 99 and info.dev == 7
+    assert (info.file_id, EntryInfo("d", Kind.DIR).size) == (None, 0)
+
+
 def test_remount_detected_by_device_change():
     """Desktop auto-unmount: the mount point now shows the parent filesystem."""
 
@@ -118,7 +127,7 @@ def test_remount_detected_by_device_change():
         def stat(self, path):
             self.calls += 1
             info = super().stat(path)
-            return replace(info, dev=99) if self.calls > 1 else info
+            return info._replace(dev=99) if self.calls > 1 else info
 
     tree = wide_tree(3)
     tree.children["d1"].list_error = OSError

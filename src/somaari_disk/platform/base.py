@@ -6,6 +6,7 @@ import enum
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import NamedTuple
 
 
 class Kind(enum.Enum):
@@ -15,8 +16,9 @@ class Kind(enum.Enum):
     OTHER = "other"  # fifo, socket, device
 
 
-@dataclass(frozen=True, slots=True)
-class EntryInfo:
+class EntryInfo(NamedTuple):
+    # A NamedTuple, not a frozen dataclass: one is built per scanned entry, and the frozen
+    # dataclass __init__ (object.__setattr__ per field) cost ~10% of a warm scan on the Pi.
     name: str
     kind: Kind
     size: int = 0  # apparent bytes (0 for dirs and links)

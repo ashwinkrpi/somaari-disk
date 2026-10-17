@@ -44,3 +44,4 @@
 - [2026-10-16] About dialog (header info button): app, build, developer info and debug fields, Copy debug info, links open in the system browser - ABOUT_SPEC.md; bug reports carry the same debug block as other somaari apps
 - [2026-10-16] README Contributing section, CONTRIBUTING.md reworded: no pull requests, forks and bug reports welcome; GitHub PR creation set to collaborators only - personal project, same policy as somaari-trip
 - [2026-10-16] Removed .github/dependabot.yml - no PRs on a personal project; only Actions bumps ever arrived, update those by hand
+- [2026-10-17] EntryInfo is a NamedTuple instead of a frozen dataclass - one is built per scanned entry; warm scan of /usr on the Pi 8-11% faster, same results
