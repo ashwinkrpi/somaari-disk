@@ -11,10 +11,11 @@
 
 The version lives only in src/<package>/__init__.py (__version__); pyproject.toml reads it
 (dynamic = ["version"], [tool.hatch.version]). Plain pushes create no tag. --release also tags
-the pushed commit vX.Y.Z, which starts the release build (a draft GitHub release); with nothing
-new to push it tags the current version if that tag is missing. Commit your work first; the bump
-commit only contains the version file. If a push fails, running this again reuses the bump
-commit instead of bumping twice. Standard library only; no sudo, no network except `git push`.
+the pushed commit vX.Y.Z (annotated), which starts the release build (a draft GitHub
+release); with nothing new to push it tags the current version if that tag is missing. Commit
+your work first; the bump commit only contains the version file. If a push fails, running this
+again reuses the bump commit instead of bumping twice. Standard library only; no sudo, no
+network except `git push`.
 """
 
 from __future__ import annotations
@@ -143,7 +144,7 @@ def ship(
     if push and not tag_only:
         git(root, "push", *([] if upstream else ["-u"]), "origin", branch)
     if release:
-        git(root, "tag", tag)
+        git(root, "tag", "-a", tag, "-m", tag)
         git(root, "push", "origin", tag)
         return (
             f"Pushed version {new} on {branch} and tag {tag}. When the Release build finishes,"

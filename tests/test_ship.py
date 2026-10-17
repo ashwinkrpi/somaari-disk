@@ -154,6 +154,7 @@ def test_release_tags_and_pushes_the_bump(repo):
     assert versions(repo) == "0.1.1"
     assert git(repo, "tag") == "v0.1.1"
     assert git(repo, "rev-parse", "v0.1.1^{commit}") == git(repo, "rev-parse", "HEAD")
+    assert git(repo, "cat-file", "-t", "v0.1.1") == "tag"  # annotated, like hand-made tags
     assert git(repo, "ls-remote", "--tags", "origin", "v0.1.1")
 
 
