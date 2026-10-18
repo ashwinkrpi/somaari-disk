@@ -1,0 +1,31 @@
+# Copy to .github/workflows/site-docs.yml in an app repo listed in docs.config.json (see the
+# somaari-site README, "Publish an app's guide"). When docs/ changes on main, it checks the guide and
+# asks Cloudflare Pages to rebuild somaari.in, which downloads the new guide.
+# Needs the repo secret SOMAARI_SITE_DEPLOY_HOOK: the somaari-site deploy hook URL.
+name: Update the guide on somaari.in
+
+on:
+  push:
+    branches: [main]
+    paths: ["docs/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rebuild-site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # The same rule the site build enforces, so a mistake shows up here and not only in Cloudflare.
+      - name: The guide doesn't mention self-hosting
+        run: |
+          if grep -inE 'self[- ]?host' docs/GUIDE.md; then
+            echo "::error file=docs/GUIDE.md::somaari.in never mentions self-hosting; reword the lines above"
+            exit 1
+          fi
+      - name: Rebuild somaari.in
+        env:
+          HOOK: ${{ secrets.SOMAARI_SITE_DEPLOY_HOOK }}
+        run: curl -fsS -X POST "$HOOK" > /dev/null
