@@ -47,4 +47,5 @@
 - [2026-10-17] EntryInfo is a NamedTuple instead of a frozen dataclass - one is built per scanned entry; warm scan of /usr on the Pi 8-11% faster, same results
 - [2026-10-17] README badge reads the latest GitHub release; ship.py `--release` tags vX.Y.Z and pushes the tag, no longer edits README - app version, badge, tags and releases had drifted apart
 - [2026-10-17] ship.py --release makes annotated tags - matches the hand-made release tags (tagger + date)
+- [2026-10-19] Location list shows unmounted removable partitions ("not mounted, removable"); picking one mounts it via udisksctl, then scans - SD card partitions only appeared after the file manager auto-mounted them
 - [2026-10-22] Removed docs/REPORTS.md - per-stage build notes, not user or contributor docs

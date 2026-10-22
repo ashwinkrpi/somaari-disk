@@ -1,5 +1,6 @@
 """Fake platform ops, hot-plug watcher, volume lost mid-scan, `volumes` CLI."""
 
+import errno
 import io
 import sys
 import threading
@@ -269,3 +270,29 @@ def test_volumes_cli():
     assert len(lines) == 2
     assert "ext4" in lines[0] and "system" in lines[0] and "64.0 GB" in lines[0]
     assert "[STICK]" in lines[1] and "removable read-only" in lines[1]
+
+
+def test_watcher_sees_unmounted_card_and_its_mount():
+    card = vol("card", is_mounted=False, mount_point=Path(), device_name="/dev/sdx1")
+    p = FakePlatform(FakeDir(), ROOT, volumes=[vol("sys", is_removable=False)])
+    events: list[list[Volume]] = []
+    w = VolumeWatcher(p, events.append, interval=0.01)
+    w.snapshot()
+    try:
+        w.resume()
+        p.unmounted.append(card)  # card inserted, nothing mounted it
+        assert wait_for(lambda: len(events) == 1)
+        assert [(v.label, v.is_mounted) for v in events[0]] == [("SYS", True), ("CARD", False)]
+        p.mount("/dev/sdx1")
+        assert wait_for(lambda: len(events) == 2)
+        assert [(v.label, v.is_mounted) for v in events[1]] == [("SYS", True), ("CARD", True)]
+    finally:
+        w.stop()
+
+
+def test_base_platform_cannot_mount():
+    from somaari_disk.platform.base import Platform
+
+    with pytest.raises(OSError) as e:
+        Platform.mount(FakePlatform(FakeDir()), "/dev/sdx1")
+    assert e.value.errno == errno.ENOTSUP

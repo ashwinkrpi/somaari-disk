@@ -93,6 +93,7 @@ Format: `- [date] decision - reason`
 - [2026-10-08] Dev-only files kept local, not in the public repo: CLAUDE.md, .claude/, docs/BUILD-PLAN.md, design/boards/ (untracked + gitignored), and removed from all past commits and tags with git filter-repo (force-pushed 2026-10-08).
 - [2026-10-08] Dependabot (`.github/dependabot.yml`): pip + github-actions, monthly - keeps deps and pinned actions current without noise; PRs still need CI green and a license check (THIRD-PARTY-NOTICES).
 - [2026-10-16] Dependabot version updates removed (`.github/dependabot.yml` deleted) - personal project that takes no pull requests; pip deps are open `>=` ranges with no lock file, so only GitHub Actions bumps ever came through; update actions by hand when GitHub warns. Dependabot security alerts (repo setting) stay on.
+- [2026-10-19] Unmounted removable partitions (lsblk: fstype set, no mount point, rm/hotplug/usb) are offered as locations and mounted on pick with `udisksctl mount --no-user-interaction` - same per-user, polkit-backed mount the file manager does; no sudo. Mounting changes OS state, not files, so "read-only on the filesystem" still holds. Internal disks are not offered (would need admin auth). Platform.list_all_volumes lets Linux run lsblk once per watcher poll. Windows: drives are always mounted, base mount() raises ENOTSUP. The .deb Recommends udisks2; without it picking one says udisksctl is not installed.
 
 ## Deferred
 - lsblk mount-point matching for LVM/LUKS mappers - needs that hardware; UUID ids done in Stage 6.

@@ -118,8 +118,8 @@ def volume_dict(v: Volume) -> dict:
     return {
         "id": v.id,
         "label": v.label,
-        "mount_point": str(v.mount_point),
-        "mount_segments": list(v.mount_point.parts),
+        "mount_point": str(v.mount_point) if v.is_mounted else "",
+        "mount_segments": list(v.mount_point.parts) if v.is_mounted else [],
         "fs_type": v.fs_type,
         "total": v.total,
         "used": v.used,
@@ -129,6 +129,15 @@ def volume_dict(v: Volume) -> dict:
         "is_read_only": v.is_read_only,
         "device_name": v.device_name,
         "is_system": v.is_system,
+        "is_mounted": v.is_mounted,
+    }
+
+
+def _volumes_payload(vols: list[Volume]) -> dict:
+    """Mounted volumes (locations) and unmounted removable partitions (mount on pick)."""
+    return {
+        "volumes": [volume_dict(v) for v in vols if v.is_mounted],
+        "unmounted": [volume_dict(v) for v in vols if not v.is_mounted],
     }
 
 
@@ -198,7 +207,7 @@ class Api:
             pass  # the window may be closing; never kill a worker thread over it
 
     def _on_volumes(self, vols: list[Volume]) -> None:
-        self._emit("volumes_changed", {"volumes": [volume_dict(v) for v in vols]})
+        self._emit("volumes_changed", _volumes_payload(vols))
 
     def set_visible(self, visible: bool) -> dict:
         """Window shown/hidden: hot-plug polling only runs while visible."""
@@ -227,7 +236,29 @@ class Api:
         home = None
         if self._home is not None:
             home = {"id": HOME_ID, "label": "Home folder", "path": str(self._home)}
-        return {"ok": True, "volumes": [volume_dict(v) for v in vols], "home": home}
+        return {"ok": True, **_volumes_payload(vols), "home": home}
+
+    @_guard
+    def mount_volume(self, volume_id: str) -> dict:
+        """Mount an unmounted removable partition as the user. Returns the mounted volume;
+        its id is unchanged, so the UI can scan it next."""
+        target = next((v for v in self._platform.list_unmounted() if v.id == volume_id), None)
+        if target is None:
+            mounted = next((v for v in self._platform.list_volumes() if v.id == volume_id), None)
+            if mounted is not None:  # mounted meanwhile (file manager, double click)
+                return {"ok": True, "volume": volume_dict(mounted)}
+            raise ApiError("unknown_location", "That drive is no longer connected.")
+        try:
+            mount = self._platform.mount(target.device_name)
+        except OSError as e:
+            log.warning("mount failed: %s", type(e).__name__)
+            raise ApiError(
+                "mount_failed", f"Couldn't mount {target.label}: {e.strerror or e}"
+            ) from e
+        vol = _volume_for(mount, self._platform.list_volumes())
+        if vol is None:
+            raise ApiError("mount_failed", f"{target.label} was mounted but can't be read.")
+        return {"ok": True, "volume": volume_dict(vol)}
 
     def _resolve(self, location: str) -> Path:
         if location == HOME_ID and self._home is not None:

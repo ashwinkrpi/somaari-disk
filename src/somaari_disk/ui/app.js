@@ -8,6 +8,8 @@ const $ = (id) => document.getElementById(id);
 const state = {
   theme: "system",
   volumes: [],
+  unmounted: [], // removable partitions nothing has mounted yet: picking one mounts it
+  mounting: false,
   home: null,
   location: null,
   scanning: false,
@@ -144,6 +146,10 @@ function locationOptions() {
     const extra = flags.length ? `, ${flags.join(", ")}` : "";
     opts.push({ id: v.id, text: `${v.label} (${v.mount_point}${extra})` });
   }
+  for (const v of state.unmounted) {
+    const size = v.total ? `${formatSize(v.total)}, ` : "";
+    opts.push({ id: v.id, text: `${v.label} (${size}not mounted, removable)` });
+  }
   return opts;
 }
 
@@ -167,7 +173,7 @@ function renderTop() {
     sel.append(el);
   }
   sel.value = state.location ?? "";
-  sel.disabled = opts.length === 0;
+  sel.disabled = opts.length === 0 || state.mounting;
 
   $("up").disabled = !state.folder || state.folder.is_root;
   $("rescan").disabled = !state.location || (!known && !state.scanning);
@@ -630,7 +636,26 @@ async function loadVolumes() {
   const res = await call("list_volumes");
   if (!res.ok) return;
   state.volumes = res.volumes;
+  state.unmounted = res.unmounted || [];
   state.home = res.home;
+}
+
+// Picking an unmounted partition mounts it (as the user, like the file manager does), then scans it.
+async function pickLocation(id) {
+  if (!state.unmounted.some((v) => v.id === id)) return startScan(id, true);
+  state.mounting = true;
+  state.flash = null;
+  render();
+  const res = await call("mount_volume", id);
+  state.mounting = false;
+  if (!res.ok) {
+    if (state.folder) state.flash = { kind: "error", icon: "error", text: res.error.message };
+    else state.error = res.error.message; // nothing shown yet: the list area says why
+    render();
+    return;
+  }
+  await loadVolumes();
+  startScan(res.volume.id, true);
 }
 
 function locationPresent() {
@@ -1073,6 +1098,7 @@ const handlers = {
   },
   volumes_changed(p) {
     state.volumes = p.volumes;
+    state.unmounted = p.unmounted || [];
     const present = locationPresent();
     if (!present) state.disconnected = Boolean(state.location);
     else if (state.disconnected) state.disconnected = false; // plugged back in
@@ -1094,7 +1120,7 @@ window.duaEvent = (event, payload) => {
 // ---- startup ----------------------------------------------------------------
 
 function bindControls() {
-  $("location").addEventListener("change", (e) => startScan(e.target.value, true));
+  $("location").addEventListener("change", (e) => pickLocation(e.target.value));
   $("up").addEventListener("click", goUp);
   $("rescan").addEventListener("click", rescanOrStop);
   $("rows").addEventListener("keydown", onRowsKey);

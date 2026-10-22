@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import enum
+import errno
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -36,7 +37,8 @@ class Listing:
 
 @dataclass(frozen=True, slots=True)
 class Volume:
-    """A mounted filesystem. Sizes in bytes."""
+    """A filesystem. Sizes in bytes. Unmounted ones (is_mounted=False) have no mount point
+    (Path()) and total = partition size, used = free = 0."""
 
     id: str  # "uuid:<fs uuid>" (stable across replug), else device path or fs_type:mount_point
     label: str
@@ -50,10 +52,18 @@ class Volume:
     is_read_only: bool = False
     device_name: str = ""
     is_system: bool = False
+    is_mounted: bool = True
 
     def identity(self) -> tuple:
         """What counts as 'changed' for hot-plug (not free space, which moves constantly)."""
-        return (self.id, self.mount_point, self.label, self.fs_type, self.is_read_only)
+        return (
+            self.id,
+            self.mount_point,
+            self.label,
+            self.fs_type,
+            self.is_read_only,
+            self.is_mounted,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +90,19 @@ class Platform(ABC):
     @abstractmethod
     def list_volumes(self) -> list[Volume]:
         """Mounted user-visible filesystems (internal, USB, SD, NVMe, network). Never raises."""
+
+    def list_unmounted(self) -> list[Volume]:
+        """Removable partitions with a filesystem that nothing has mounted yet. Never raises."""
+        return []
+
+    def list_all_volumes(self) -> list[Volume]:
+        """list_volumes() + list_unmounted(); platforms may override to share one probe."""
+        return self.list_volumes() + self.list_unmounted()
+
+    def mount(self, device: str) -> Path:
+        """Mount a partition from list_unmounted() as the user (no admin rights); returns its
+        mount point. Raises OSError."""
+        raise OSError(errno.ENOTSUP, "Mounting drives isn't supported here.")
 
     @abstractmethod
     def owner_and_perms(self, path: Path) -> Permissions:

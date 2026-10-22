@@ -13,6 +13,7 @@
 |---|---|---|
 | stat / scandir | os.scandir, st_blocks, (dev, ino) | os.scandir + full lstat per file (file index, link count, volume serial); size on disk = size rounded to cluster, GetCompressedFileSizeW for compressed/sparse/cloud files; `\\?\` prefix past 248 chars |
 | list_volumes | psutil mount table + `lsblk -J` (3 s timeout); network statvfs in a thread (2 s) | ctypes: GetLogicalDrives, GetDriveTypeW, GetVolumeInformationW, GetDiskFreeSpaceExW; id = volume GUID, else serial; USB/SD/1394 bus (IOCTL_STORAGE_QUERY_PROPERTY) = removable; non-fixed drives queried in a thread (2 s); no-media drives skipped |
+| list_unmounted / mount | `lsblk -J -b`: removable partitions with a mountable FSTYPE and no mount point; `udisksctl mount --no-user-interaction -b <dev>` (30 s timeout, polkit, no sudo) | none: drives are always mounted; base mount() raises ENOTSUP |
 | owner_and_perms | lstat + pwd/grp, stat.filemode, os.access(W_OK) | GetNamedSecurityInfoW + LookupAccountSidW (SID string fallback); group ""; mode = attribute names; read-only = attribute or read-only volume |
 | is_hidden | dot name | FILE_ATTRIBUTE_HIDDEN or dot name (done) |
 | trash | send2trash (shared): home trash or per-volume `.Trash-<uid>`; refuses volume roots and read-only folders | shared (Recycle Bin); manual check only |

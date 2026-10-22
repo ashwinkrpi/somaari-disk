@@ -19,7 +19,13 @@ from .local import LocalPlatform
 
 LSBLK_TIMEOUT = 3.0  # seconds
 USAGE_TIMEOUT = 2.0  # network mounts can hang statvfs
-LSBLK_COLUMNS = "NAME,PATH,MOUNTPOINT,LABEL,UUID,MODEL,TYPE,TRAN,RM,HOTPLUG,RO"
+LSBLK_COLUMNS = "NAME,PATH,MOUNTPOINT,LABEL,UUID,MODEL,TYPE,TRAN,RM,HOTPLUG,RO,FSTYPE,SIZE"
+MOUNT_TIMEOUT = 30.0  # udisks may check the filesystem first
+# Block-level formats that hold other volumes, not a filesystem to mount.
+NOT_MOUNTABLE = frozenset(
+    "swap LVM2_member crypto_LUKS linux_raid_member zfs_member bcache isw_raid_member "
+    "ddf_raid_member squashfs".split()
+)
 
 # Pseudo, virtual and image filesystems that are not user storage.
 SKIP_FS = frozenset(
@@ -86,6 +92,76 @@ def parse_lsblk(text: str) -> dict[str, dict]:
     return out
 
 
+def _int(v: object) -> int:
+    try:
+        return max(0, int(v))  # type: ignore[call-overload]
+    except (TypeError, ValueError):
+        return 0  # lsblk without -b, or a missing size
+
+
+def unmounted_from_lsblk(text: str) -> list[Volume]:
+    """Removable partitions with a mountable filesystem and no mount point, from lsblk JSON."""
+    out: list[Volume] = []
+
+    def walk(devs: list[dict], parent: dict) -> None:
+        for d in devs:
+            removable = (
+                _flag(d.get("rm"))
+                or _flag(d.get("hotplug"))
+                or (d.get("tran") or parent["tran"]) == "usb"
+                or parent["removable"]
+            )
+            model = (d.get("model") or parent["model"] or "").strip()
+            kids = d.get("children") or []
+            fs = d.get("fstype") or ""
+            path = d.get("path") or ""
+            if (
+                not kids
+                and removable
+                and fs
+                and fs not in NOT_MOUNTABLE
+                and path
+                and not d.get("mountpoint")
+                and not any(d.get("mountpoints") or [])
+                and d.get("type") in ("part", "disk")
+            ):
+                out.append(
+                    Volume(
+                        id=f"uuid:{d['uuid']}" if d.get("uuid") else path,
+                        label=d.get("label") or model or PurePosixPath(path).name,
+                        mount_point=Path(),
+                        fs_type=fs,
+                        total=_int(d.get("size")),
+                        used=0,
+                        free=0,
+                        is_removable=True,
+                        is_read_only=_flag(d.get("ro")),
+                        device_name=path,
+                        is_mounted=False,
+                    )
+                )
+            walk(kids, {"removable": removable, "model": model, "tran": d.get("tran") or ""})
+
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return []
+    if isinstance(data, dict):
+        walk(data.get("blockdevices") or [], {"removable": False, "model": "", "tran": ""})
+    return out
+
+
+def parse_mount_output(text: str) -> Path | None:
+    """Mount point from udisksctl's "Mounted /dev/x at /media/u/LABEL" (older versions add '.')."""
+    head, sep, tail = text.strip().partition(" at ")
+    if not sep or not head.startswith("Mounted "):
+        return None
+    tail = tail.rstrip()
+    if tail.endswith(".") and not Path(tail).exists():
+        tail = tail[:-1]
+    return Path(tail) if tail else None
+
+
 def build_volumes(
     partitions: Iterable[Partition],
     devices: dict[str, dict],
@@ -148,7 +224,7 @@ def build_volumes(
 def _run_lsblk() -> str:
     try:
         r = subprocess.run(
-            ["lsblk", "-J", "-o", LSBLK_COLUMNS],
+            ["lsblk", "-J", "-b", "-o", LSBLK_COLUMNS],
             capture_output=True,
             text=True,
             timeout=LSBLK_TIMEOUT,
@@ -239,6 +315,42 @@ class LinuxPlatform(LocalPlatform):
         except OSError:
             return []
         return build_volumes(parts, parse_lsblk(_run_lsblk()), _usage)
+
+    def list_unmounted(self) -> list[Volume]:
+        return unmounted_from_lsblk(_run_lsblk())
+
+    def list_all_volumes(self) -> list[Volume]:
+        import psutil
+
+        text = _run_lsblk()  # once per poll: the watcher calls this every few seconds
+        try:
+            mounted = build_volumes(psutil.disk_partitions(all=True), parse_lsblk(text), _usage)
+        except OSError:
+            mounted = []
+        taken = {v.device_name for v in mounted} | {v.id for v in mounted}
+        loose = [v for v in unmounted_from_lsblk(text) if not {v.device_name, v.id} & taken]
+        return mounted + loose
+
+    def mount(self, device: str) -> Path:
+        cmd = ["udisksctl", "mount", "--no-user-interaction", "-b", device]
+        try:
+            r = subprocess.run(
+                cmd,
+                stdin=subprocess.DEVNULL,
+                capture_output=True,
+                text=True,
+                timeout=MOUNT_TIMEOUT,
+                check=False,
+            )
+        except FileNotFoundError as e:
+            raise OSError(errno.ENOTSUP, "udisksctl is not installed.") from e
+        except subprocess.TimeoutExpired as e:
+            raise OSError(errno.ETIMEDOUT, "Mounting took too long.") from e
+        mount = parse_mount_output(r.stdout) if r.returncode == 0 else None
+        if mount is None:
+            msg = (r.stderr or r.stdout).strip().splitlines()
+            raise OSError(errno.EIO, msg[-1] if msg else "The drive could not be mounted.")
+        return mount
 
     def owner_and_perms(self, path: Path) -> Permissions:
         import grp

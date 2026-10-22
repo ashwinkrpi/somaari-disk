@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import errno
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path, PurePath
 
 from .base import EntryInfo, Kind, Listing, Permissions, Platform, Volume
@@ -62,12 +62,16 @@ class FakePlatform(Platform):
         dev: int = 1,
         volumes: list[Volume] | None = None,
         vanish_after: int | None = None,
+        unmounted: list[Volume] | None = None,
     ):
         self.root = root
         self.tree = tree
         if tree.dev is None:
             tree.dev = dev
         self.volumes = list(volumes or [])
+        self.unmounted = list(unmounted or [])  # mount() moves one into volumes
+        self.mount_error: OSError | None = None  # raised by mount() if set
+        self.mounted: list[str] = []
         self.trashed: list[Path] = []
         self.revealed: list[Path] = []
         self.trash_error: OSError | None = None  # raised by trash() if set
@@ -132,6 +136,21 @@ class FakePlatform(Platform):
 
     def list_volumes(self) -> list[Volume]:
         return [] if self.gone else list(self.volumes)
+
+    def list_unmounted(self) -> list[Volume]:
+        return [] if self.gone else list(self.unmounted)
+
+    def mount(self, device: str) -> Path:
+        if self.mount_error is not None:
+            raise self.mount_error
+        for v in self.unmounted:
+            if v.device_name == device:
+                self.unmounted.remove(v)
+                mount = self.root / "media" / v.label
+                self.volumes.append(replace(v, mount_point=mount, is_mounted=True))
+                self.mounted.append(device)
+                return mount
+        raise _err(FileNotFoundError, PurePath(device))
 
     def owner_and_perms(self, path: Path) -> Permissions:
         node, _ = self._lookup(path)

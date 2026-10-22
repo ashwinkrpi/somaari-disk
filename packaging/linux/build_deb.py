@@ -98,6 +98,7 @@ def control(meta: dict, installed_kib: int) -> str:
         f"Maintainer: {maintainer(meta)}\n"
         f"Installed-Size: {installed_kib}\n"
         f"Depends: {', '.join(DEPENDS)}\n"
+        "Recommends: udisks2\n"
         "Section: utils\n"
         "Priority: optional\n"
         f"Homepage: {meta['urls']['Homepage']}\n"

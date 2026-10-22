@@ -12,7 +12,13 @@ from pathlib import Path
 import pytest
 
 from somaari_disk.platform import get_platform, linux
-from somaari_disk.platform.linux import LinuxPlatform, build_volumes, parse_lsblk
+from somaari_disk.platform.linux import (
+    LinuxPlatform,
+    build_volumes,
+    parse_lsblk,
+    parse_mount_output,
+    unmounted_from_lsblk,
+)
 
 POSIX_ONLY = pytest.mark.skipif(sys.platform == "win32", reason="POSIX file modes")
 IS_ROOT = hasattr(os, "geteuid") and os.geteuid() == 0
@@ -374,3 +380,122 @@ def test_volume_id_survives_replug_to_new_device():
     first, again = stick_on("sda1", "/media/demo/STICK"), stick_on("sdb1", "/media/demo/STICK1")
     assert first.id == again.id == "uuid:1A2B-3C4D"
     assert first.device_name != again.device_name
+
+
+CARD_LSBLK = {
+    "blockdevices": [
+        {"name": "nvme0n1", "path": "/dev/nvme0n1", "type": "disk", "tran": "nvme",
+         "rm": False, "hotplug": False, "children": [
+             {"name": "nvme0n1p3", "path": "/dev/nvme0n1p3", "type": "part", "fstype": "ext4",
+              "mountpoint": None, "rm": False, "hotplug": False},  # internal: not offered
+         ]},
+        {"name": "mmcblk0", "path": "/dev/mmcblk0", "type": "disk", "tran": None,
+         "rm": False, "hotplug": True, "size": 64 * GB, "children": [
+             {"name": "mmcblk0p1", "path": "/dev/mmcblk0p1", "type": "part", "fstype": "vfat",
+              "label": "bootfs", "uuid": "AB-12", "mountpoint": None, "size": 512 * 10**6},
+             {"name": "mmcblk0p2", "path": "/dev/mmcblk0p2", "type": "part", "fstype": "ext4",
+              "label": None, "mountpoint": None, "size": "63G"},  # old lsblk: no -b
+             {"name": "mmcblk0p3", "path": "/dev/mmcblk0p3", "type": "part", "fstype": "swap",
+              "mountpoint": None},
+             {"name": "mmcblk0p4", "path": "/dev/mmcblk0p4", "type": "part", "fstype": "exfat",
+              "label": "DATA", "mountpoint": "/media/demo/DATA"},
+             {"name": "mmcblk0p5", "path": "/dev/mmcblk0p5", "type": "part", "fstype": None,
+              "mountpoint": None},
+         ]},
+        {"name": "sdb", "path": "/dev/sdb", "type": "disk", "tran": "usb", "model": "Card Reader",
+         "rm": False, "hotplug": False, "fstype": "exfat", "label": None, "mountpoints": [None],
+         "ro": "1"},
+        {"name": "loop0", "path": "/dev/loop0", "type": "loop", "fstype": "squashfs",
+         "rm": False, "hotplug": False, "mountpoint": None},
+    ]
+}  # fmt: skip
+
+
+def test_unmounted_from_lsblk():
+    vols = unmounted_from_lsblk(json.dumps(CARD_LSBLK))
+    assert [(v.id, v.label, v.fs_type, v.total) for v in vols] == [
+        ("uuid:AB-12", "bootfs", "vfat", 512 * 10**6),
+        ("/dev/mmcblk0p2", "mmcblk0p2", "ext4", 0),
+        ("/dev/sdb", "Card Reader", "exfat", 0),  # whole-disk filesystem on a USB reader
+    ]
+    assert all(not v.is_mounted and v.is_removable and v.mount_point == Path() for v in vols)
+    assert vols[2].is_read_only and vols[0].device_name == "/dev/mmcblk0p1"
+
+
+@pytest.mark.parametrize("text", ["", "not json", "[]", '{"blockdevices": null}'])
+def test_unmounted_from_lsblk_bad_input(text):
+    assert unmounted_from_lsblk(text) == []
+
+
+@pytest.mark.parametrize(
+    "out, want",
+    [
+        ("Mounted /dev/sdx1 at /media/demo/CARD\n", "/media/demo/CARD"),
+        ("Mounted /dev/sdx1 at /media/demo/My Card.\n", "/media/demo/My Card"),
+        ("Mounted /dev/sdx1 at /media/demo/a at b\n", "/media/demo/a at b"),
+        ("Error mounting /dev/sdx1\n", None),
+        ("", None),
+    ],
+)
+def test_parse_mount_output(out, want):
+    got = parse_mount_output(out)
+    assert (got.as_posix() if got else None) == want
+
+
+def test_mount_runs_udisksctl(monkeypatch):
+    seen = {}
+
+    def run(cmd, **kw):
+        seen.update(kw, cmd=cmd)
+        return types.SimpleNamespace(
+            returncode=0, stdout="Mounted /dev/sdx1 at /media/demo/CARD\n", stderr=""
+        )
+
+    monkeypatch.setattr(linux.subprocess, "run", run)
+    assert LinuxPlatform().mount("/dev/sdx1").as_posix() == "/media/demo/CARD"
+    assert seen["cmd"] == ["udisksctl", "mount", "--no-user-interaction", "-b", "/dev/sdx1"]
+    assert seen["timeout"] == linux.MOUNT_TIMEOUT and "sudo" not in seen["cmd"]
+
+
+@pytest.mark.parametrize(
+    "result, code",
+    [
+        (
+            types.SimpleNamespace(returncode=1, stdout="", stderr="Error: Not authorized\n"),
+            errno.EIO,
+        ),
+        (FileNotFoundError("udisksctl"), errno.ENOTSUP),
+        (subprocess.TimeoutExpired("udisksctl", 30), errno.ETIMEDOUT),
+    ],
+)
+def test_mount_failures_raise_oserror(monkeypatch, result, code):
+    def run(cmd, **kw):
+        if isinstance(result, BaseException):
+            raise result
+        return result
+
+    monkeypatch.setattr(linux.subprocess, "run", run)
+    with pytest.raises(OSError) as e:
+        LinuxPlatform().mount("/dev/sdx1")
+    assert e.value.errno == code
+    if code == errno.EIO:
+        assert "Not authorized" in str(e.value)
+
+
+def test_list_all_volumes_runs_lsblk_once_and_drops_mounted(monkeypatch):
+    calls = []
+    tree = json.loads(json.dumps(CARD_LSBLK))
+    tree["blockdevices"][1]["children"][0]["mountpoint"] = None  # lsblk lags behind the mount
+    fake = types.SimpleNamespace(
+        disk_partitions=lambda all: [Part("/dev/mmcblk0p1", "/media/demo/bootfs", "vfat", "rw")],
+        disk_usage=lambda m: types.SimpleNamespace(total=GB, used=0, free=GB),
+    )
+    monkeypatch.setitem(sys.modules, "psutil", fake)
+    monkeypatch.setattr(linux, "_run_lsblk", lambda: calls.append(1) or json.dumps(tree))
+    vols = LinuxPlatform().list_all_volumes()
+    assert len(calls) == 1
+    assert [(v.device_name, v.is_mounted) for v in vols] == [
+        ("/dev/mmcblk0p1", True),
+        ("/dev/mmcblk0p2", False),
+        ("/dev/sdb", False),
+    ]

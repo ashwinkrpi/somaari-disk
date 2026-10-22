@@ -1,4 +1,5 @@
-"""Hot-plug detection by polling list_volumes. Polls only while resumed (window visible)."""
+"""Hot-plug detection by polling list_all_volumes (mounted + unmounted).
+Polls only while resumed (window visible)."""
 
 from __future__ import annotations
 
@@ -12,6 +13,8 @@ VolumesCallback = Callable[[list[Volume]], None]
 
 class VolumeWatcher:
     """Calls `on_change(volumes)` when a volume appears, disappears or changes identity.
+    Volumes include unmounted removable partitions (is_mounted=False), so a card that is
+    inserted or mounted by another app shows up too.
 
     Starts paused. resume() when the window is shown, pause() when hidden: a paused
     watcher's thread blocks without waking, so idle CPU stays at zero.
@@ -58,7 +61,7 @@ class VolumeWatcher:
 
     def _list(self) -> list[Volume]:
         try:
-            return self._platform.list_volumes()
+            return self._platform.list_all_volumes()
         except Exception:  # never let a platform hiccup kill the watcher
             return []
 

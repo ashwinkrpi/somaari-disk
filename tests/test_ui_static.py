@@ -240,7 +240,7 @@ def test_main_rejects_unknown_args_without_gui(capsys):
 
 def test_saved_scan_on_start_and_location_change_only():
     assert "startScan(defaultLocation(), true)" in JS
-    assert "startScan(e.target.value, true)" in JS
+    assert "pickLocation(e.target.value)" in JS and "return startScan(id, true);" in JS
     assert 'call("scan", location, cached)' in JS
     assert "else startScan(state.location);" in JS  # Rescan button: always a fresh scan
     assert "Showing the last scan, from ${formatDate(d.scanned_at)}" in JS
@@ -425,3 +425,11 @@ def test_folders_can_be_moved_to_trash():
     assert "including all its subfolders" in JS and "warn.hidden = !dirs" in JS
     assert ".dialog-warn" in CSS
     assert "function kindCount(items)" in JS
+
+
+def test_unmounted_partitions_mount_on_pick():
+    assert "state.unmounted = res.unmounted || [];" in JS
+    assert "state.unmounted = p.unmounted || [];" in JS  # hot-plug keeps the list current
+    assert "not mounted, removable" in JS
+    assert 'call("mount_volume", id)' in JS
+    assert "startScan(res.volume.id, true)" in JS

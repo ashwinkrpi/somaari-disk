@@ -185,6 +185,7 @@ def test_deb_staging_layout(tmp_path):
     assert control["Architecture"] == "all"
     assert "python3 (>= 3.11)" in control["Depends"]
     assert "gir1.2-webkit2-4.1" in control["Depends"]
+    assert control["Recommends"] == "udisks2"  # udisksctl mounts unmounted partitions
     assert int(control["Installed-Size"]) > 0
     for script in ("postinst", "prerm"):
         assert (staging / "DEBIAN" / script).stat().st_mode & stat.S_IXUSR

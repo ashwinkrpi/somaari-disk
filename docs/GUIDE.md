@@ -285,6 +285,10 @@ On start the app opens your **Home folder** (or the system drive). Pick somethin
 sticks and drives, SD cards, NVMe), with removable and read-only drives marked. Plug a drive in or
 out while the window is open and the list updates within a few seconds.
 
+On Linux, a USB or SD card partition that nothing has mounted yet is listed as **not mounted,
+removable**. Picking it mounts it, the same way the file manager does (no password), and scans it.
+Internal disks that aren't mounted aren't listed.
+
 Network shares are listed too; one that doesn't answer within 2 seconds shows with zero size.
 
 ### The usage bar

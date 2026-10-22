@@ -726,3 +726,63 @@ def test_folder_holding_another_drive_is_not_trashed():
     assert api.get_details(["Docs", "x.pdf"])["trash_blocked"] is None  # files beside it ok
     assert api.move_to_trash(["Docs"], True)["error"]["code"] == "holds_drive"
     assert plat.trashed == []
+
+
+def card(**kw):
+    return vol(id="uuid:card", label="CARD", mount_point=Path(), used=0, free=0,
+               is_mounted=False, device_name="/dev/sdx1", **kw)  # fmt: skip
+
+
+def test_list_volumes_splits_unmounted():
+    api, plat, _ = make()
+    plat.unmounted.append(card())
+    res = api.list_volumes()
+    assert_json(res)
+    assert [v["id"] for v in res["volumes"]] == ["dev-a"]
+    (u,) = res["unmounted"]
+    assert u["id"] == "uuid:card" and not u["is_mounted"]
+    assert u["mount_point"] == "" and u["mount_segments"] == []
+
+
+def test_mount_volume_then_scan():
+    api, plat, rec = make(tree=sample_tree())
+    plat.unmounted.append(card())
+    res = api.mount_volume("uuid:card")
+    assert_json(res)
+    assert res["ok"] and res["volume"]["id"] == "uuid:card" and res["volume"]["is_mounted"]
+    assert plat.mounted == ["/dev/sdx1"] and not plat.unmounted
+    assert api.list_volumes()["unmounted"] == []
+    assert api.scan("uuid:card")["ok"]
+    assert rec.done.wait(5)
+
+
+def test_mount_volume_already_mounted_elsewhere():
+    api, plat, _ = make()
+    res = api.mount_volume("dev-a")  # file manager won the race
+    assert res["ok"] and res["volume"]["id"] == "dev-a" and plat.mounted == []
+
+
+def test_mount_volume_errors():
+    api, plat, _ = make()
+    assert api.mount_volume("uuid:nope")["error"]["code"] == "unknown_location"
+    plat.unmounted.append(card())
+    plat.mount_error = PermissionError(13, "Not authorized")
+    res = api.mount_volume("uuid:card")
+    assert res["error"]["code"] == "mount_failed" and "CARD" in res["error"]["message"]
+    assert plat.unmounted  # still offered
+
+
+def test_volumes_changed_carries_unmounted():
+    api, plat, rec = make()
+    api.list_volumes()
+    api.set_visible(True)
+    try:
+        plat.unmounted.append(card())
+        end = time.monotonic() + 5
+        while not rec.of("volumes_changed") and time.monotonic() < end:
+            time.sleep(0.01)
+        (ev,) = rec.of("volumes_changed")[:1]
+        assert [v["id"] for v in ev["unmounted"]] == ["uuid:card"]
+        assert [v["id"] for v in ev["volumes"]] == ["dev-a"]
+    finally:
+        api.shutdown()

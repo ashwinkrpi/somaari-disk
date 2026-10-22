@@ -22,7 +22,9 @@ Below is the manual checklist for real hardware. Run from the Pi desktop, or ove
    - Move one test file to the Trash: totals drop without a rescan, and the file is in the
      drive's Trash.
 5. SD card (FAT32 or exFAT, through a reader): same as step 4. If the card has a lock switch,
-   test the read-only case: Move to Trash is disabled with a plain reason.
+   test the read-only case: Move to Trash is disabled with a plain reason. Then unmount it
+   (`udisksctl unmount -b <dev>`) with the window open: it stays in Location as "not mounted,
+   removable"; picking it mounts it and starts a scan.
 6. Unplug mid-scan: start a scan of the USB drive and pull it out. Expect:
    - "Drive disconnected" right away, no freeze, no crash,
    - after replugging, the drive is back in Location under the same entry, and opening it
