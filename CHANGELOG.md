@@ -49,3 +49,4 @@
 - [2026-10-17] ship.py --release makes annotated tags - matches the hand-made release tags (tagger + date)
 - [2026-10-19] Location list shows unmounted removable partitions ("not mounted, removable"); picking one mounts it via udisksctl, then scans - SD card partitions only appeared after the file manager auto-mounted them
 - [2026-10-22] Removed docs/REPORTS.md - per-stage build notes, not user or contributor docs
+- [2026-11-02] README architecture diagram is an SVG (docs/images/architecture.svg) instead of Mermaid - the GitHub mobile app shows Mermaid blocks as raw source

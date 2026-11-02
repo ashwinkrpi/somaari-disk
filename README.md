@@ -99,16 +99,7 @@ Everything else, with screenshots and every keyboard shortcut:
 
 ## 🧠 How it works
 
-```mermaid
-flowchart LR
-    U[🖥️ Window<br/>HTML · CSS · JS] -- "pywebview<br/>js_api" --> A[api/<br/>plain JSON]
-    A --> S[core/ scanner<br/>thread pool]
-    S --> P[platform/<br/>linux · windows]
-    P --> D[(Your drives<br/>read-only)]
-    A -- "Move to Trash<br/>confirmed" --> T[🗑️ Trash /<br/>Recycle Bin]
-    A <--> C[(Saved scans<br/>gzip JSON Lines)]
-    S -. "progress events" .-> U
-```
+<img src="docs/images/architecture.svg" alt="The window calls api/ through pywebview. api/ starts the core scanner, which reads your drives read-only through platform/ and sends progress events back to the window. api/ also moves confirmed items to the Trash or Recycle Bin, and reads and writes saved scans." width="640">
 
 <details>
 <summary><b>Step by step</b></summary>
