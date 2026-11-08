@@ -50,3 +50,4 @@
 - [2026-10-19] Location list shows unmounted removable partitions ("not mounted, removable"); picking one mounts it via udisksctl, then scans - SD card partitions only appeared after the file manager auto-mounted them
 - [2026-10-22] Removed docs/REPORTS.md - per-stage build notes, not user or contributor docs
 - [2026-11-02] README architecture diagram is an SVG (docs/images/architecture.svg) instead of Mermaid - the GitHub mobile app shows Mermaid blocks as raw source
+- [2026-11-09] Demo mode: the Internal disk sample tree is scaled to fit its volume (127 GB of items on 141 GB used) - it listed 684 GB on a 256 GB drive

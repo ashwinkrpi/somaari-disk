@@ -692,6 +692,16 @@ def test_demo_platform_scans():
     assert api.get_children([])["children"][0]["name"] == "Photos"
 
 
+def test_demo_trees_fit_inside_their_volumes():
+    # Bug: the Internal disk demo listed 684 GB of items on a 256 GB drive (141 GB used).
+    from somaari_disk.platform.demo import _total
+
+    plat = demo_platform()
+    for vol in plat.list_volumes():
+        tree = plat.tree.children[vol.mount_point.name]
+        assert _total(tree) <= vol.used, vol.id
+
+
 def test_guarded_methods_keep_signatures_for_pywebview():
     import inspect
 

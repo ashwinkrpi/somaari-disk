@@ -53,12 +53,34 @@ def demo_tree(seed: int = 7) -> FakeDir:
     return FakeDir(top, mtime=_DATE)
 
 
+def _total(d: FakeDir) -> int:
+    return sum(_total(c) if isinstance(c, FakeDir) else c.size for c in d.children.values())
+
+
+def _fit(d: FakeDir, budget: int) -> FakeDir:
+    """Scale file sizes down so the tree totals at most `budget` bytes (never scales up)."""
+    total = _total(d)
+    if total > budget:
+        factor = budget / total
+
+        def scale(node: FakeDir) -> None:
+            for c in node.children.values():
+                if isinstance(c, FakeDir):
+                    scale(c)
+                else:
+                    c.size = max(1, int(c.size * factor))
+
+        scale(d)
+    return d
+
+
 def demo_platform() -> FakePlatform:
     internal = DEMO_ROOT / "Internal"
     usb = DEMO_ROOT / "USB stick"
     tree = FakeDir(
         {
-            "Internal": demo_tree(7),
+            # Files fill 90% of "used"; the rest stands for system files outside the tree.
+            "Internal": _fit(demo_tree(7), 141 * GB * 9 // 10),
             "USB stick": FakeDir({"Photos": demo_tree(11).children["Photos"]}, dev=2),
         },
         dev=1,
