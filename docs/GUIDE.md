@@ -60,7 +60,7 @@ For what it does and doesn't do, privacy, safety and development, see the [READM
 | 🐧 **Other Linux** (Fedora, Arch, …) | Install [from source](#from-source-on-linux) |
 
 The app itself is small; from source it needs about 200 MB of disk space. A scan of a million
-files uses roughly 250 to 300 MB of RAM.
+files peaks at roughly 500 MB of RAM.
 
 Download release builds from
 [Releases](https://github.com/ashwinkrpi/somaari-disk/releases).

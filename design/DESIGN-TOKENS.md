@@ -1,10 +1,10 @@
-# Disk Usage Analyzer: design tokens (extracted from the Claude canvas)
+# Somaari Disk: design tokens (extracted from the Claude canvas)
 
 The original design boards (HTML mockups, 1280x840 reference size) are not in the repo; `docs/screenshots/` shows the result.
 Fonts: IBM Plex Sans (400/500/600) for UI, IBM Plex Mono (500) for paths and sizes. Bundle locally; no CDN at runtime.
 
 ## Layout (top to bottom)
-1. Top panel (dark, 88px + 44px breadcrumb row): app title "Disk Usage", Location select (min-width 420px, 44px high, mono 15px), Up button (44x44), Rescan button (right aligned, 44px high).
+1. Top panel (dark, 88px + 44px breadcrumb row): app title "Somaari Disk", Location select (min-width 420px, 44px high, mono 15px), Up button (44x44), Rescan button (right aligned, 44px high).
 2. Breadcrumb row: mono 13px, current segment white/600, ancestors muted.
 3. Usage bar strip: status label + icon (left), "X used of Y · Z free · N%" (right), 10px progress bar with tick marks at 50% and 75%.
 4. Body: 16px padding and gap. Left panel (flex 2) "Largest items": header 64px, rows 56px with name, inline bar (16px high), size, percent. Right panel (flex 1): detail for selection.
@@ -26,9 +26,9 @@ link/accent #8CC1F0 | muted #9AA6B5 / #8A94A3 | track #2C3644
 | Range | Label | Light fill / text | Dark fill / text |
 |---|---|---|---|
 | < 50% | Plenty of space | #2E7D32 / #1B5E20 | #43A047 / #6FCF7A |
-| 50% to <75% | Filling up | #F2C14E / #7A5B00 | derive a dark-mode equivalent |
-| 75% to <100% | Running low | #E07B1F / #9A4A00 | derive a dark-mode equivalent |
-| 100% | Disk full | #C62828 / #B3261E | derive a dark-mode equivalent |
+| 50% to <75% | Filling up | #F2C14E / #7A5B00 | #D9A93A / #F2CF7A |
+| 75% to <100% | Running low | #E07B1F / #9A4A00 | #E8893A / #F5B27A |
+| 100% | Disk full | #C62828 / #B3261E | #E05252 / #F2B8B5 |
 Never rely on color alone: each state has its own icon and text label.
 
 ## Interaction and accessibility notes

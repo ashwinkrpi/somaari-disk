@@ -110,3 +110,4 @@ Format: `- [date] decision - reason`
 - WebView2 bootstrapper in the installer (Inno Setup registry check + silent per-user run) - only if Windows 10 users report the missing-WebView2 message. Code signing: not for now (unsigned, 2026-10-08).
 - .deb for Python 3.10 distros (Ubuntu 22.04) and rpm/AppImage/Flatpak - not planned; docs/GUIDE.md covers source installs.
 - Windows ARM64 build - no arm64 runner job yet; x64 build runs under emulation.
+- WebView2 user data folder under a Program Files install: verify it is per-user; pass storage_path from platformdirs if not - needs a Windows install check.
