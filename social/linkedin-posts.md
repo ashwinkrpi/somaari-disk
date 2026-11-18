@@ -68,7 +68,7 @@ A disk cleanup tool has one dangerous feature: the delete button.
 
 In Somaari Disk, there isn't one.
 
-The app only reads your files. The single change it can make is Move to Trash, after you confirm, and the Trash gives it back. No permanent delete anywhere in the code.
+The app only reads your files. The single change it can make is Move to Trash, after you confirm, and the Trash gives it back. Nothing in the code can permanently delete your files.
 
 That rule came straight from banking. Production access is read-only by default, and every write path is narrow, named and confirmed. Not because people are careless, but because one click on the wrong folder is expensive to undo.
 

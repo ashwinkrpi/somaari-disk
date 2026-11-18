@@ -52,3 +52,4 @@
 - [2026-11-02] README architecture diagram is an SVG (docs/images/architecture.svg) instead of Mermaid - the GitHub mobile app shows Mermaid blocks as raw source
 - [2026-11-09] Demo mode: the Internal disk sample tree is scaled to fit its volume (127 GB of items on 141 GB used) - it listed 684 GB on a 256 GB drive
 - [2026-11-13] Docs synced with code: ARCHITECTURE (missing api/platform methods, ui and other modules), PLATFORM (Linux reveal, WebView2 installer and storage_path status), GUIDE (memory peak), DESIGN-TOKENS (app name, dark usage colours) - docs had drifted from the code
+- [2026-11-18] social/linkedin-posts.md post 3: "Nothing in the code can permanently delete your files" replaces "No permanent delete anywhere in the code" - the app does remove its own files (window state, saved scans); only user files are Trash-only
