@@ -1,103 +1,40 @@
-<div align="center">
+<p align="center">
+  <img src="docs/images/banner.svg" alt="somaari-disk" width="100%">
+</p>
 
-<img src="docs/images/banner.svg" alt="somaari-disk — see what is using space on your drives" width="100%">
+<p align="center">
+  A fast, read-only disk usage explorer for Raspberry Pi, Linux and Windows: find what is filling your drives, and clear it out safely.
+</p>
 
-<br>
+<p align="center">
+  <a href="https://github.com/ashwinkrpi/somaari-disk/releases">Releases</a> | <a href="docs/GUIDE.md">Guide</a> | <a href="https://docs.somaari.in/somaari-disk/">Docs</a> | <a href="https://somaari.in/">Website</a> | <a href="https://github.com/ashwinkrpi/somaari-disk/issues">Issues</a>
+</p>
 
-**Find what is filling your drives, and clear it out safely.**<br>
-Somaari Disk scans a drive or folder and shows the largest items first, with a usage bar, folder
-totals and file details. Internal disks and external drives alike: USB sticks, SD cards, NVMe,
-exFAT/NTFS/FAT32, read-only mounts.
+<p align="center">
+  <a href="LICENSE"><img alt="License" src="https://img.shields.io/github/license/ashwinkrpi/somaari-disk?style=for-the-badge"></a>
+  <a href="https://github.com/ashwinkrpi/somaari-disk/releases"><img alt="Release" src="https://img.shields.io/github/v/release/ashwinkrpi/somaari-disk?style=for-the-badge"></a>
+</p>
 
-<br>
+<p align="center">
+  <a href="https://github.com/ashwinkrpi/somaari-disk/releases/latest"><img alt="Download the latest release" src="https://img.shields.io/badge/Download_Somaari_Disk-4C8DDB?style=for-the-badge&logo=github&logoColor=white"></a>
+</p>
 
-[![Release](https://img.shields.io/github/v/release/ashwinkrpi/somaari-disk?color=61afef)](https://github.com/ashwinkrpi/somaari-disk/releases)
-[![Python](https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![pywebview](https://img.shields.io/badge/pywebview-GTK%20%7C%20WebView2-4C8DDB)](https://pywebview.flowrl.com/)
-[![Linux](https://img.shields.io/badge/Linux-arm64%20%7C%20x86--64-FCC624?logo=linux&logoColor=black)](docs/GUIDE.md#debian-ubuntu-raspberry-pi-os-deb)
-[![Windows](https://img.shields.io/badge/Windows-10%20%7C%2011-0078D4)](docs/GUIDE.md#windows-installer-or-zip)
-[![Raspberry Pi 5](https://img.shields.io/badge/Raspberry%20Pi-5-C51A4A?logo=raspberrypi&logoColor=white)](https://www.raspberrypi.com/products/raspberry-pi-5/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-61afef)](LICENSE)
 
-[Features](#-features) ·
-[Install](#-install) ·
-[Usage](#-usage) ·
-[How it works](#-how-it-works) ·
-[Privacy](#-privacy) ·
-[Safety](#%EF%B8%8F-safety-model) ·
-[Development](#%EF%B8%8F-development) ·
-[Guide](docs/GUIDE.md)
+## Introduction
 
-</div>
+Somaari Disk scans a drive or folder and shows the largest items first, with a usage bar, folder totals and file details. It handles internal disks and external drives alike: USB sticks, SD cards, NVMe, exFAT/NTFS/FAT32 and read-only mounts.
 
-![Main screen: usage bar, largest items and the open folder panel (demo data)](docs/screenshots/main-light.png)
+It reads only. The one change it can make is **Move to Trash**, after you confirm, and the Trash restores it. No network access, no telemetry, no accounts.
 
-> [!NOTE]
-> Reads only. The one change it can make is **Move to Trash**, after you confirm, and the Trash
-> restores it. No network access, no telemetry, no accounts.
+It runs on Linux (tested on Raspberry Pi 5, arm64) and Windows 10/11 (x64).
 
----
+## See it work
 
-## ✨ Features
+<p align="center">
+  <img src="docs/screenshots/main-light.png" alt="Main screen: usage bar, largest items and the open folder panel (demo data)" width="90%">
+</p>
 
-- 📊 **Largest first**: every folder's contents sorted by size, with a bar and share, so the big
-  items are always at the top. Drill in with a double-click, back with Backspace.
-- 💽 **Every drive**: internal disks, USB sticks and drives, SD cards, NVMe, network shares;
-  exFAT, NTFS, FAT32, ext4 and read-only mounts. Plug a drive in and it appears within seconds.
-- 🚦 **Usage at a glance**: *Plenty of space*, *Filling up*, *Running low* or *Disk full*, with an
-  icon and label, not just a colour.
-- 🗑️ **Move to Trash, never delete**: one file, a folder, or many at once, with one confirmation.
-  Totals update without a rescan.
-- ⚡ **Fast and frugal**: scans run in the background, fill the list as they go, can be stopped,
-  and skip folders they can't read. A generated million-file tree scans in about 9 seconds on a
-  Raspberry Pi 5.
-- 💾 **Opens instantly**: the last scan of each location is saved, even for a drive you unplug
-  and plug back in. Rescan when you want fresh numbers.
-- 🧭 **Honest numbers**: never follows symlinks or junctions, stays on one drive, counts hard
-  links once, and shows size on disk too.
-- ⌨️ **Keyboard first**: everything, including multi-select and the Trash dialog, works without a
-  mouse.
-- 🌗 **Light and dark**: follows your OS, or pick one.
-
-Runs on Linux (tested on Raspberry Pi 5, arm64) and Windows 10/11 (x64).
-
-## 🚀 Install
-
-Download from [Releases](https://github.com/ashwinkrpi/somaari-disk/releases): a `.deb` for
-Debian, Ubuntu and Raspberry Pi OS (arm64 and x86-64), or a Windows installer / portable zip.
-
-```sh
-sudo apt install ./somaari-disk_<version>_all.deb    # then open Somaari Disk from the app menu
-```
-
-The [guide](docs/GUIDE.md) covers the rest:
-- [Requirements](docs/GUIDE.md#requirements),
-  [Windows](docs/GUIDE.md#windows-installer-or-zip) (SmartScreen, WebView2) and
-  [checking downloads](docs/GUIDE.md#checking-downloads) against `SHA256SUMS`
-- From source on [other Linux distributions](docs/GUIDE.md#from-source-on-linux) and
-  [Windows](docs/GUIDE.md#from-source-on-windows)
-- [Updating](docs/GUIDE.md#updating), [trying it with demo data](docs/GUIDE.md#try-it-with-demo-data)
-  and [uninstalling](docs/GUIDE.md#uninstalling)
-- [Configuration](docs/GUIDE.md#%EF%B8%8F-configuration): theme, window size, where the app keeps
-  its files, command line
-
-## 🧑‍💻 Usage
-
-| Do this… | What happens |
-|---|---|
-| Pick a drive in **Location** | Its saved scan opens at once, or a new scan starts and the list fills in |
-| Double-click a folder (or **Enter**) | Opens it; **Backspace** or **Up** goes back |
-| Click a file | Type, size, size on disk, dates, owner and full path on the right |
-| **Show in folder** | Opens your file manager at that item |
-| **Shift+click** / **Ctrl+click** | Selects several items; the panel shows their total |
-| **Delete** or **Move to Trash** | Asks first, then moves them to the Trash or Recycle Bin |
-| **Rescan** (F5) / **Stop** (Esc) | Scans fresh / stops a running scan |
-| `somaari-disk scan <folder>` | The largest items in the terminal, no window |
-
-Everything else, with screenshots and every keyboard shortcut:
-[Using the app](docs/GUIDE.md#-using-the-app).
-
-## 🧠 How it works
+## How it works
 
 <img src="docs/images/architecture.svg" alt="The window calls api/ through pywebview. api/ starts the core scanner, which reads your drives read-only through platform/ and sends progress events back to the window. api/ also moves confirmed items to the Trash or Recycle Bin, and reads and writes saved scans." width="640">
 
@@ -120,7 +57,66 @@ One Python process and one window: no server, no database, no Node, no build ste
 
 </details>
 
-## 🔒 Privacy
+## Features
+
+- 📊 **Largest first**: every folder's contents sorted by size, with a bar and share, so the big
+  items are always at the top. Drill in with a double-click, back with Backspace.
+- 💽 **Every drive**: internal disks, USB sticks and drives, SD cards, NVMe, network shares;
+  exFAT, NTFS, FAT32, ext4 and read-only mounts. Plug a drive in and it appears within seconds.
+- 🚦 **Usage at a glance**: *Plenty of space*, *Filling up*, *Running low* or *Disk full*, with an
+  icon and label, not just a colour.
+- 🗑️ **Move to Trash, never delete**: one file, a folder, or many at once, with one confirmation.
+  Totals update without a rescan.
+- ⚡ **Fast and frugal**: scans run in the background, fill the list as they go, can be stopped,
+  and skip folders they can't read. A generated million-file tree scans in about 9 seconds on a
+  Raspberry Pi 5.
+- 💾 **Opens instantly**: the last scan of each location is saved, even for a drive you unplug
+  and plug back in. Rescan when you want fresh numbers.
+- 🧭 **Honest numbers**: never follows symlinks or junctions, stays on one drive, counts hard
+  links once, and shows size on disk too.
+- ⌨️ **Keyboard first**: everything, including multi-select and the Trash dialog, works without a
+  mouse.
+- 🌗 **Light and dark**: follows your OS, or pick one.
+
+Runs on Linux (tested on Raspberry Pi 5, arm64) and Windows 10/11 (x64).
+
+## Install
+
+Download from [Releases](https://github.com/ashwinkrpi/somaari-disk/releases): a `.deb` for
+Debian, Ubuntu and Raspberry Pi OS (arm64 and x86-64), or a Windows installer / portable zip.
+
+```sh
+sudo apt install ./somaari-disk_<version>_all.deb    # then open Somaari Disk from the app menu
+```
+
+The [guide](docs/GUIDE.md) covers the rest:
+- [Requirements](docs/GUIDE.md#requirements),
+  [Windows](docs/GUIDE.md#windows-installer-or-zip) (SmartScreen, WebView2) and
+  [checking downloads](docs/GUIDE.md#checking-downloads) against `SHA256SUMS`
+- From source on [other Linux distributions](docs/GUIDE.md#from-source-on-linux) and
+  [Windows](docs/GUIDE.md#from-source-on-windows)
+- [Updating](docs/GUIDE.md#updating), [trying it with demo data](docs/GUIDE.md#try-it-with-demo-data)
+  and [uninstalling](docs/GUIDE.md#uninstalling)
+- [Configuration](docs/GUIDE.md#%EF%B8%8F-configuration): theme, window size, where the app keeps
+  its files, command line
+
+## Usage
+
+| Do this… | What happens |
+|---|---|
+| Pick a drive in **Location** | Its saved scan opens at once, or a new scan starts and the list fills in |
+| Double-click a folder (or **Enter**) | Opens it; **Backspace** or **Up** goes back |
+| Click a file | Type, size, size on disk, dates, owner and full path on the right |
+| **Show in folder** | Opens your file manager at that item |
+| **Shift+click** / **Ctrl+click** | Selects several items; the panel shows their total |
+| **Delete** or **Move to Trash** | Asks first, then moves them to the Trash or Recycle Bin |
+| **Rescan** (F5) / **Stop** (Esc) | Scans fresh / stops a running scan |
+| `somaari-disk scan <folder>` | The largest items in the terminal, no window |
+
+Everything else, with screenshots and every keyboard shortcut:
+[Using the app](docs/GUIDE.md#-using-the-app).
+
+## Privacy
 
 > [!IMPORTANT]
 > **TL;DR:** nothing leaves your computer. The app makes no network requests, has no telemetry,
@@ -143,14 +139,14 @@ Exact paths: [Where the app keeps its files](docs/GUIDE.md#where-the-app-keeps-i
 
 </details>
 
-## 🛡️ Safety model
+## Safety model
 
 | Rule | What it means |
 |---|---|
-| 👀 **Read-only** | Scanning never changes anything. The only write to your files is Move to Trash |
-| ✋ **Always asks** | Move to Trash needs a confirmation that names the items and their size; Cancel is the default |
-| ♻️ **No permanent delete** | Items go to the Trash or Recycle Bin and can be restored from there |
-| 🚧 **Stays in bounds** | Never follows symlinks or junctions, never crosses into another drive, refuses to trash a folder that holds another drive |
+| **Read-only** | Scanning never changes anything. The only write to your files is Move to Trash |
+| **Always asks** | Move to Trash needs a confirmation that names the items and their size; Cancel is the default |
+| **No permanent delete** | Items go to the Trash or Recycle Bin and can be restored from there |
+| **Stays in bounds** | Never follows symlinks or junctions, never crosses into another drive, refuses to trash a folder that holds another drive |
 
 <details>
 <summary><b>Details</b></summary>
@@ -169,7 +165,7 @@ Exact paths: [Where the app keeps its files](docs/GUIDE.md#where-the-app-keeps-i
 
 </details>
 
-## 🛠️ Development
+## Development
 
 ```sh
 python3 -m venv --system-site-packages .venv   # Linux: PyGObject comes from apt
@@ -185,7 +181,7 @@ On Linux install the system packages first ([From source on Linux](docs/GUIDE.md
 See [CONTRIBUTING.md](CONTRIBUTING.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and
 [docs/TESTING.md](docs/TESTING.md). Screenshots come from `--demo` only, never real files.
 
-## 🤝 Contributing
+## Contributing
 
 This is a personal project and doesn't accept pull requests. You're welcome to fork it and adapt
 it for yourself, and bug reports in [Issues](https://github.com/ashwinkrpi/somaari-disk/issues)
@@ -194,8 +190,3 @@ are appreciated. See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## License
 
 MIT, see [LICENSE](LICENSE). Bundled fonts and dependencies: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
-
-<div align="center">
-<br>
-<sub>Made for a Raspberry Pi 5 with a small SD card and a lot of files.</sub>
-</div>
