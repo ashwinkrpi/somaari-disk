@@ -10,7 +10,7 @@ The posts are written in your Supergrow Content DNA style: plain prose, no emoji
 
 Your somaari.in posts already fill the slots up to 17 Nov, so these start on 24 Nov.
 
-**Across platforms:** each LinkedIn post starts a "theme day". The same topic goes out on X at 9:00 PM that day and on Instagram at 7:30 PM the next day. See the tables in `twitter-posts.md` and `instagram-posts.md`.
+**Across platforms:** each LinkedIn post starts a "theme day". The same topic goes out on X at 9:00 PM that day. See the table in `twitter-posts.md`.
 
 | # | Post | Day | Date | Time (IST) | Image |
 |---|------|-----|------|------------|-------|

@@ -6,13 +6,12 @@ Copy the text inside each box and attach the image(s) listed under it. Every pos
 
 **How often:** 2 posts a week, on Tuesday and Thursday evenings, 24 Nov to 8 Dec. On the days in between, reply to comments and join Raspberry Pi, Linux and open-source threads. Replies grow a new account faster than more posts do.
 
-### How X, LinkedIn and Instagram fit together
+### How X and LinkedIn fit together
 
-Each topic gets its own "theme day": **LinkedIn in the morning, X the same evening, Instagram the next evening.**
+Each topic gets its own "theme day": **LinkedIn in the morning, X the same evening.**
 
 1. **LinkedIn, 9:00 AM:** goes first. It's the longest version of the story, and weekday mornings are when LinkedIn gets read.
 2. **X, 9:00 PM the same day:** the short version. This is X's best slot in India, and it's morning on the US East Coast, where much of the Linux and Raspberry Pi crowd is.
-3. **Instagram, 7:30 PM the next day:** the visual recap, on Instagram's best weekday slot. Posting it a day later shows the topic to people twice, and you only reply to one platform at a time.
 
 The posts below are in their original order. Post them on the dates in this table.
 
@@ -21,13 +20,13 @@ The posts below are in their original order. Post them on the dates in this tabl
 - **9:00 to 11:00 AM, Tue to Thu:** a good slot for Indian developers starting work.
 - **Avoid:** Saturday and Sunday, and 1:00 to 6:00 AM.
 
-| Date | Theme | LinkedIn (9:00 AM, fixed) | X (9:00 PM) | Instagram (next day, 7:30 PM) |
-|------|-------|---------------------------|-------------|-------------------------------|
-| Tue 24 Nov | Launch | Post 1: "Disk full" | **Post 1: Launch** (pin it) | Wed 25 Nov: Post 1 |
-| Thu 26 Nov | Safety | Post 2: No delete button | **Post 3: Safety** | Fri 27 Nov: Post 3 |
-| Tue 1 Dec | Drives & honest numbers | Post 3: Honest numbers | **Post 5: Every drive** | Wed 2 Dec: Post 5 |
-| Thu 3 Dec | Privacy | Post 4: Logs are data | **Post 4: Privacy** | Fri 4 Dec: Post 4 |
-| Tue 8 Dec | Speed on a Pi | Post 5: 2 GiB on a shared Pi | **Post 2: Speed** | Wed 9 Dec: Post 2 |
+| Date | Theme | LinkedIn (9:00 AM, fixed) | X (9:00 PM) |
+|------|-------|---------------------------|-------------|
+| Tue 24 Nov | Launch | Post 1: "Disk full" | **Post 1: Launch** (pin it) |
+| Thu 26 Nov | Safety | Post 2: No delete button | **Post 3: Safety** |
+| Tue 1 Dec | Drives & honest numbers | Post 3: Honest numbers | **Post 5: Every drive** |
+| Thu 3 Dec | Privacy | Post 4: Logs are data | **Post 4: Privacy** |
+| Tue 8 Dec | Speed on a Pi | Post 5: 2 GiB on a shared Pi | **Post 2: Speed** |
 
 **Tips**
 - Pin Post 1 to your profile.
