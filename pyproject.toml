@@ -16,7 +16,7 @@ dependencies = [
     "platformdirs>=4",
     "psutil>=5.9",
     "send2trash>=1.8",
-    "somaari-common @ git+https://github.com/ashwinkrpi/somaari-common#subdirectory=python",
+    "somaari-common @ git+https://github.com/ashwinkrpi/somaari-site#subdirectory=common/python",
 ]
 
 [project.urls]

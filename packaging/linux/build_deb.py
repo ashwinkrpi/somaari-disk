@@ -22,7 +22,7 @@ LIB = Path("usr", "lib", NAME)
 # pure-Python runtime deps vendored into LIB (psutil comes from apt: it has C extensions)
 VENDORED = [
     *("pywebview", "bottle", "proxy_tools", "typing_extensions", "send2trash", "platformdirs"),
-    "somaari-common @ git+https://github.com/ashwinkrpi/somaari-common#subdirectory=python",
+    "somaari-common @ git+https://github.com/ashwinkrpi/somaari-site#subdirectory=common/python",
 ]
 DEPENDS = [
     "python3 (>= 3.11)",
